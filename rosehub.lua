@@ -78,8 +78,8 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 do
     local _efOn = true
     pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if type(isfile) == "function" and type(readfile) == "function" and isfile("rosehub.json") then
-            local d = game:GetService("HttpService"):JSONDecode(readfile("rosehub.json"))
+        if type(isfile) == "function" and type(readfile) == "function" and isfile("gerathub.json") then
+            local d = game:GetService("HttpService"):JSONDecode(readfile("gerathub.json"))
             if type(d) == "table" and d.FpsOptimizer == false then _efOn = false end
         end end)
     if _efOn then
@@ -782,14 +782,7 @@ return Enum.KeyCode[cleaned] end)
     if ok and kc then return kc end
     return fallback
 end
-local FileName = "rosehub.json"
-do
-    if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
-        if not isfile(FileName) then
-            for _, old in ipairs({ "rosehub_v1.json", "JustAFanHub_v1.json" }) do
-                if isfile(old) then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-writefile(FileName, readfile(old)) end); break end
-            end end end end
+local FileName = "gerathub.json"
 local DefaultConfig = {
     Positions = {
         AdminPanel = {X = 0.1859375, Y = 0.5767123526556385},
@@ -898,7 +891,7 @@ local DefaultConfig = {
     AutoResetOnBalloon = false,
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
-    CurrentTheme = "white",
+    CurrentTheme = "orange",
     CustomThemeHex = "FFC800",
     ThemeImageUrl = "",
     ShowMiniActions = true,
@@ -963,17 +956,7 @@ if _G.JAF_NoCarpetScan == true then Config.CarpetAutoBuy = false end
 if _G.JAF_FastBuyPublic == nil then _G.JAF_FastBuyPublic = true end
 _G.JAF_FastBuyAllowed = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return true end
-if not (isfile and isfile(FileName)) then
-    local vpH = 1080
-    pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local cam = Workspace.CurrentCamera
-        local h = cam and cam.ViewportSize and cam.ViewportSize.Y
-        if not h or h < 200 then local res = GuiService.GetScreenResolution and GuiService:GetScreenResolution() h = res and res.Y end
-        if h and h >= 200 then vpH = h end
-    end)
-    local autoScale = 0.9 * (vpH / 1080)
-    Config.UIScale = math.floor(math.clamp(autoScale, 0.9, 1.5) * 20 + 0.5) / 20
-end
+
 _G.JAF_FFlagList = {
     {"DFFlagBrowserTrackerIdTelemetryEnabled","False"},{"DFFlagPreloadAsyncSupportTexturePack","True"},{"DFFlagTextureQualityOverrideEnabled","True"},
     {"DFFlagVideoCaptureServiceEnabled","False"},{"DFFlagSampleAndRefreshRakPing","True"},{"DFFlagRakNetUseSlidingWindow4","True"},
@@ -1313,17 +1296,17 @@ local function triggerClosestUnlock(yLevel, maxY) LPH_ATTRIBUTES(VM(NONE), ERROR
 _G.JAF_Config     = Config      -- exposed so the Modern GUI (appended at EOF) can read/write settings
 _G.JAF_SaveConfig = SaveConfig
 local Theme = {
-    -- Monochrome look matching the Modern GUI (neutral grayscale, white accents).
-    Background      = Color3.fromRGB(20, 20, 20),
-    Surface         = Color3.fromRGB(34, 34, 34),
-    SurfaceHighlight= Color3.fromRGB(46, 46, 46),
-    Accent1         = Color3.fromRGB(235, 235, 235),
-    Accent2         = Color3.fromRGB(130, 130, 130),
-    TextPrimary     = Color3.fromRGB(238, 238, 238),
-    TextSecondary   = Color3.fromRGB(130, 130, 130),
-    Success         = Color3.fromRGB(235, 235, 235),
-    Error           = Color3.fromRGB(205, 120, 120),
-    Stroke          = Color3.fromRGB(50, 50, 50),
+    -- Orange Gerat Hub theme
+    Background      = Color3.fromRGB(18, 12, 8),
+    Surface         = Color3.fromRGB(32, 22, 14),
+    SurfaceHighlight= Color3.fromRGB(48, 32, 18),
+    Accent1         = Color3.fromRGB(255, 140, 30),
+    Accent2         = Color3.fromRGB(220, 100, 20),
+    TextPrimary     = Color3.fromRGB(255, 245, 235),
+    TextSecondary   = Color3.fromRGB(210, 160, 110),
+    Success         = Color3.fromRGB(255, 160, 50),
+    Error           = Color3.fromRGB(255, 90, 70),
+    Stroke          = Color3.fromRGB(80, 45, 20),
 }
 function _G.JAF_OnAccent(c) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     c = c or Theme.Accent1
@@ -1344,6 +1327,7 @@ do
         rose     = {26,10,16, 38,14,24, 64,22,40, 255,120,160, 215,75,120, 250,240,244, 230,180,200, 255,120,160, 255,95,95},
         ocean    = {6,14,26, 8,22,42, 14,40,72, 60,130,255, 30,90,210, 238,242,250, 175,195,230, 60,130,255, 210,90,90},
         white    = {18,18,22, 28,28,34, 48,48,56, 235,235,245, 170,170,185, 245,245,248, 185,185,195, 235,235,245, 210,90,90},
+        orange   = {18,12,8, 32,22,14, 48,32,18, 255,140,30, 220,100,20, 255,245,235, 210,160,110, 255,160,50, 255,90,70},
         dawg     = {20,13,11, 34,19,17, 60,26,24, 196,42,38, 142,24,22, 246,236,232, 226,184,174, 196,42,38, 255,95,95},
         custom   = {18,8,38, 25,10,55, 45,15,85, 180,50,255, 130,0,220, 240,240,240, 200,170,230, 180,50,255, 210,90,90},
     }
@@ -1993,23 +1977,31 @@ do
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
--- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
-do
-    Theme.Background       = Color3.fromRGB(20, 20, 20)
-    Theme.Surface          = Color3.fromRGB(34, 34, 34)
-    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
-    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
-    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
-    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(235, 235, 235)
-    Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(50, 50, 50)
-    _G.JAF_ForceMono = true
-    -- stop later image/custom theming from re-tinting
-    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
+-- FORCE orange Gerat Hub look over any saved theme (always)
+_G.JAF_ForceOrange = true
+_G.JAF_ApplyOrangeTheme = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    Theme.Background       = Color3.fromRGB(18, 12, 8)
+    Theme.Surface          = Color3.fromRGB(32, 22, 14)
+    Theme.SurfaceHighlight = Color3.fromRGB(48, 32, 18)
+    Theme.Accent1          = Color3.fromRGB(255, 140, 30)
+    Theme.Accent2          = Color3.fromRGB(220, 100, 20)
+    Theme.TextPrimary      = Color3.fromRGB(255, 245, 235)
+    Theme.TextSecondary    = Color3.fromRGB(210, 160, 110)
+    Theme.Success          = Color3.fromRGB(255, 160, 50)
+    Theme.Error            = Color3.fromRGB(255, 90, 70)
+    Theme.Stroke           = Color3.fromRGB(80, 45, 20)
+    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "orange" end
 end
+local function _jafApplyOrangeTheme() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    return _G.JAF_ApplyOrangeTheme()
+end
+_G.JAF_ApplyOrangeTheme()
+_G.JAF_ForceMono = false
+if Config then
+    Config.PanelSizes = Config.PanelSizes or {}
+    Config.PanelSizes["JustAFanSettings"] = { w = 300, h = 230 }
+end
+
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
     {"AutoStealUI"},
@@ -2041,11 +2033,16 @@ function jafUnifyPanelStyle() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if frame then pcall(jafStyleOnePanel, frame) end
         end end end
 applyTheme = function(themeName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    if _G.JAF_ForceOrange then themeName = "orange" end
     local t = THEMES[themeName]
-    if not t then return end
+    if not t then
+        if _G.JAF_ForceOrange and _jafApplyOrangeTheme then _jafApplyOrangeTheme() end
+        return
+    end
     local colorMap = {}
     for k, oldColor in pairs(Theme) do if t[k] then colorMap[oldColor] = t[k] end end
     for k, v in pairs(t) do Theme[k] = v end
+    if _G.JAF_ForceOrange and _jafApplyOrangeTheme then _jafApplyOrangeTheme() end
     Config.CurrentTheme = themeName
     SaveConfig()
     local function matchColor(c1, c2) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -13830,10 +13827,18 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
         _P(mainStroke, "Color", Theme.Accent1, "Thickness", 1, "Transparency", 0.45)
         if Config.PanelScales then Config.PanelScales["JustAFanStatusHUD"] = nil end
         local _splitX = 322
-        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
-        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
+        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX - 28, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
+        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX - 28, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
         hubOwner.TextColor3 = Color3.fromRGB(255, 255, 255)
         hubOwner.TextXAlignment = Enum.TextXAlignment.Center
+        local hudClose = JUI.new("TextButton", main, "Size", UDim2.new(0, 22, 0, 22), "Position", UDim2.new(0, _splitX - 26, 0.5, -11), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.2, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", Theme.TextPrimary, "AutoButtonColor", false, "ZIndex", 5)
+        Instance.new("UICorner", hudClose).CornerRadius = UDim.new(0, 6)
+        hudClose.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            main.Visible = false
+            Config.HideStatusHUD = true
+            pcall(SaveConfig)
+        end)
+        if Config.HideStatusHUD == true then main.Visible = false end
         local div = JUI.new("Frame", main, "Size", UDim2.new(0, 1, 0, 30), "Position", UDim2.new(0, _splitX, 0.5, -15), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 0.45, "BorderSizePixel", 0)
         local _rightW = 520 - _splitX
         local fpsLbl = JUI.new("TextLabel", main, "Size", UDim2.new(0, _rightW, 0, 15), "Position", UDim2.new(0, _splitX, 0, 9), "BackgroundTransparency", 1)
@@ -14958,10 +14963,12 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 480, 0, 360), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -180), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
-    panel:SetAttribute("JAFBaseScale", 0.88)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 300, 0, 230), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -115), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    panel:SetAttribute("JAFBaseScale", 1)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.88; us.Parent = panel end)
+        for _, o in ipairs(panel:GetChildren()) do if o:IsA("UIScale") then o:Destroy() end end
+        panel.Size = UDim2.new(0, 300, 0, 230)
+    end)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
@@ -16731,7 +16738,10 @@ task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     end) end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     task.wait(1.5)
-    if Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
+    if _G.JAF_ForceOrange and _jafApplyOrangeTheme then
+        pcall(_jafApplyOrangeTheme)
+        if applyTheme then pcall(applyTheme, "orange") end
+    elseif Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
         pcall(jafApplyImageTheme, Config.ThemeImageUrl)
     elseif Config.CurrentTheme == "dawg" and THEMES and THEMES["dawg"] then
         applyTheme("dawg")
@@ -17102,6 +17112,17 @@ do
                 if vp.X < 10 then vp = _G.JAF_Viewport() end
                 for _, ch in ipairs(sg:GetChildren()) do
                     if ch:IsA("GuiObject") then
+                        -- Keep the main panel's base dimensions fixed, but apply UIScale
+                        -- to the whole panel so the UI Scale setting remains usable.
+                        if ch:GetAttribute("JAFNoUIScale") then
+                            for _, o in ipairs(ch:GetChildren()) do
+                                if o:IsA("UIScale") then o:Destroy() end
+                            end
+                            continue
+                        end
+                        if ch.Name == "MainPanel" then
+                            ch.Size = UDim2.new(0, 300, 0, 230)
+                        end
                         local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
                         local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
                         if base <= 0.05 or base > 1 then base = 1 end
@@ -17124,7 +17145,16 @@ do
     end
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local t0 = tick()
-        while true do pcall(_G.JAF_ApplyUIScale, Config.UIScale or 1) task.wait((tick() - t0 < 15) and 0.2 or 2) end
+        while true do
+            if _G.JAF_ForceOrange and Theme and Theme.Accent1 then
+                local a = Theme.Accent1
+                if not (a.R > 0.85 and a.G > 0.4 and a.G < 0.7 and a.B < 0.25) then
+                    if _G.JAF_ApplyOrangeTheme then pcall(_G.JAF_ApplyOrangeTheme) end
+                end
+            end
+            pcall(_G.JAF_ApplyUIScale, Config.UIScale or 1)
+            task.wait((tick() - t0 < 15) and 0.2 or 2)
+        end
     end)
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local ok, cg = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
