@@ -871,7 +871,7 @@ local DefaultConfig = {
     AntiBeeDisco = false,
     FOV = 70,
     AutoUnlockOnSteal = false,
-    UIScale = 0.75,
+    UIScale = 1,
     PanelScales = {},
     MobileMode      = "auto",
     HubButtonMode   = "auto",
@@ -898,7 +898,7 @@ local DefaultConfig = {
     AutoResetOnBalloon = false,
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
-    CurrentTheme = "white",
+    CurrentTheme = "orange",
     CustomThemeHex = "FFC800",
     ThemeImageUrl = "",
     ShowMiniActions = true,
@@ -963,16 +963,9 @@ if _G.JAF_NoCarpetScan == true then Config.CarpetAutoBuy = false end
 if _G.JAF_FastBuyPublic == nil then _G.JAF_FastBuyPublic = true end
 _G.JAF_FastBuyAllowed = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return true end
-if not (isfile and isfile(FileName)) then
-    local vpH = 1080
-    pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local cam = Workspace.CurrentCamera
-        local h = cam and cam.ViewportSize and cam.ViewportSize.Y
-        if not h or h < 200 then local res = GuiService.GetScreenResolution and GuiService:GetScreenResolution() h = res and res.Y end
-        if h and h >= 200 then vpH = h end
-    end)
-    local autoScale = 0.9 * (vpH / 1080)
-    Config.UIScale = math.floor(math.clamp(autoScale, 0.9, 1.5) * 20 + 0.5) / 20
+-- Gerat Hub: fixed compact main GUI (300x230) — UIScale 1 so size is literal
+do
+    Config.UIScale = 1
 end
 _G.JAF_FFlagList = {
     {"DFFlagBrowserTrackerIdTelemetryEnabled","False"},{"DFFlagPreloadAsyncSupportTexturePack","True"},{"DFFlagTextureQualityOverrideEnabled","True"},
@@ -1994,8 +1987,9 @@ do
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE orange Gerat Hub look over any saved theme
-do
+-- FORCE orange Gerat Hub look over any saved theme (always)
+_G.JAF_ForceOrange = true
+_G.JAF_ApplyOrangeTheme = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
     Theme.Background       = Color3.fromRGB(18, 12, 8)
     Theme.Surface          = Color3.fromRGB(32, 22, 14)
     Theme.SurfaceHighlight = Color3.fromRGB(48, 32, 18)
@@ -2006,9 +2000,20 @@ do
     Theme.Success          = Color3.fromRGB(255, 160, 50)
     Theme.Error            = Color3.fromRGB(255, 90, 70)
     Theme.Stroke           = Color3.fromRGB(80, 45, 20)
-    _G.JAF_ForceMono = false
     if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "orange" end
 end
+local function _jafApplyOrangeTheme() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    return _G.JAF_ApplyOrangeTheme()
+end
+_G.JAF_ApplyOrangeTheme()
+_G.JAF_ForceMono = false
+if Config then
+    Config.UIScale = 1
+    Config.PanelScales = {}
+    Config.PanelSizes = Config.PanelSizes or {}
+    Config.PanelSizes["JustAFanSettings"] = { w = 300, h = 230 }
+end
+
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
     {"AutoStealUI"},
@@ -2040,11 +2045,16 @@ function jafUnifyPanelStyle() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if frame then pcall(jafStyleOnePanel, frame) end
         end end end
 applyTheme = function(themeName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    if _G.JAF_ForceOrange then themeName = "orange" end
     local t = THEMES[themeName]
-    if not t then return end
+    if not t then
+        if _G.JAF_ForceOrange and _jafApplyOrangeTheme then _jafApplyOrangeTheme() end
+        return
+    end
     local colorMap = {}
     for k, oldColor in pairs(Theme) do if t[k] then colorMap[oldColor] = t[k] end end
     for k, v in pairs(t) do Theme[k] = v end
+    if _G.JAF_ForceOrange and _jafApplyOrangeTheme then _jafApplyOrangeTheme() end
     Config.CurrentTheme = themeName
     SaveConfig()
     local function matchColor(c1, c2) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -14965,10 +14975,10 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 400, 0, 300), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -150), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
-    panel:SetAttribute("JAFBaseScale", 0.75)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 300, 0, 230), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -115), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    panel:SetAttribute("JAFBaseScale", 1)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.75; us.Parent = panel end)
+local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 1; us.Parent = panel end)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
@@ -16738,7 +16748,10 @@ task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     end) end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     task.wait(1.5)
-    if Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
+    if _G.JAF_ForceOrange and _jafApplyOrangeTheme then
+        pcall(_jafApplyOrangeTheme)
+        if applyTheme then pcall(applyTheme, "orange") end
+    elseif Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
         pcall(jafApplyImageTheme, Config.ThemeImageUrl)
     elseif Config.CurrentTheme == "dawg" and THEMES and THEMES["dawg"] then
         applyTheme("dawg")
@@ -17131,7 +17144,17 @@ do
     end
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local t0 = tick()
-        while true do pcall(_G.JAF_ApplyUIScale, Config.UIScale or 1) task.wait((tick() - t0 < 15) and 0.2 or 2) end
+        while true do
+            Config.UIScale = 1
+            if _G.JAF_ForceOrange and Theme and Theme.Accent1 then
+                local a = Theme.Accent1
+                if not (a.R > 0.85 and a.G > 0.4 and a.G < 0.7 and a.B < 0.25) then
+                    if _G.JAF_ApplyOrangeTheme then pcall(_G.JAF_ApplyOrangeTheme) end
+                end
+            end
+            pcall(_G.JAF_ApplyUIScale, Config.UIScale or 0.55)
+            task.wait((tick() - t0 < 15) and 0.2 or 2)
+        end
     end)
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local ok, cg = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
