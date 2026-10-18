@@ -78,8 +78,8 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 do
     local _efOn = true
     pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if type(isfile) == "function" and type(readfile) == "function" and isfile("gerathub.json") then
-            local d = game:GetService("HttpService"):JSONDecode(readfile("gerathub.json"))
+        if type(isfile) == "function" and type(readfile) == "function" and isfile("rosehub.json") then
+            local d = game:GetService("HttpService"):JSONDecode(readfile("rosehub.json"))
             if type(d) == "table" and d.FpsOptimizer == false then _efOn = false end
         end end)
     if _efOn then
@@ -782,7 +782,7 @@ return Enum.KeyCode[cleaned] end)
     if ok and kc then return kc end
     return fallback
 end
-local FileName = "gerathub.json"
+local FileName = "rosehub.json"
 do
     if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
         if not isfile(FileName) then
@@ -13686,8 +13686,8 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
         _P(mainStroke, "Color", Theme.Accent1, "Thickness", 1, "Transparency", 0.45)
         if Config.PanelScales then Config.PanelScales["JustAFanStatusHUD"] = nil end
         local _splitX = 322
-        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub\n@herbrunettehairs", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
-        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@pumpkinjustlarping", "Font", Enum.Font.GothamMedium, "TextSize", 14)
+        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
+        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
         hubOwner.TextColor3 = Color3.fromRGB(255, 255, 255)
         hubOwner.TextXAlignment = Enum.TextXAlignment.Center
         local div = JUI.new("Frame", main, "Size", UDim2.new(0, 1, 0, 30), "Position", UDim2.new(0, _splitX, 0.5, -15), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 0.45, "BorderSizePixel", 0)
