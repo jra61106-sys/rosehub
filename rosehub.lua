@@ -13219,19 +13219,29 @@ if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 		end
 	end
 	local function _buryBodyFlat(character) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		-- lay body FLAT on the ground (steso a terra), fully invisible, no legs sticking up
+		-- visual only: body looks flat on ground + invisible, movement stays NORMAL
 		if not character then return end
 		local hum = character:FindFirstChildOfClass("Humanoid")
 		local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
 		if hum then
-			if _invisSavedHip == nil then _invisSavedHip = hum.HipHeight end
-			hum.HipHeight = 0
+			-- keep normal locomotion (do NOT Physics / do NOT lock AutoRotate)
 			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-hum.AutoRotate = false end)
+hum.AutoRotate = true end)
 			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+if hum.PlatformStand then hum.PlatformStand = false end end)
+			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+if hum.Sit then hum.Sit = false end end)
+			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+if hum.WalkSpeed <= 0 then hum.WalkSpeed = 16 end end)
+			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+				local st = hum:GetState()
+				if st == Enum.HumanoidStateType.Physics or st == Enum.HumanoidStateType.Ragdoll
+					or st == Enum.HumanoidStateType.Seated or st == Enum.HumanoidStateType.PlatformStanding then
+					hum:ChangeState(Enum.HumanoidStateType.Running)
+				end
+			end)
 		end
-		-- Root attachment: pitch 90deg so the R15 rig lies horizontal on the floor
+		-- visual: lay rig flat on floor via Root attachment (does not block WASD)
 		local drop = tonumber(_G.JAF_InvisBuryDepth) or 0.15
 		local lay = CFrame.Angles(math.rad(90), 0, 0) * CFrame.new(0, -drop, 0)
 		if _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase then
@@ -13247,16 +13257,25 @@ hum:ChangeState(Enum.HumanoidStateType.Physics) end)
 				a0.CFrame = base * lay
 			end
 		end
-		-- full invisible (body + legs + head + accessories) and no collide
+		-- full invisible body/legs/head; HRP stays collidable for normal walking
 		for _, d in ipairs(character:GetDescendants()) do
 			if d:IsA("BasePart") then
 				d.LocalTransparencyModifier = 1
 				d.Transparency = 1
-				if d.Name ~= "HumanoidRootPart" then d.CanCollide = false end
+				if d.Name ~= "HumanoidRootPart" then
+					d.CanCollide = false
+				else
+					d.CanCollide = true
+					d.Anchored = false
+				end
 			elseif d:IsA("Decal") or d:IsA("Texture") then
 				d.LocalTransparencyModifier = 1
 				d.Transparency = 1
 			end
+		end
+		if root then
+			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+root.Anchored = false; root.CanCollide = true end)
 		end
 	end
 	local function _setLocalCharInvis(on) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -13383,6 +13402,23 @@ humanoid:ChangeState(Enum.HumanoidStateType.Freefall) end)
 		local success = doClone()
 		if success then pcall(_setLocalCharInvis, true) end
 		if success then
+			-- ensure normal movement right away
+			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+				local h = character:FindFirstChildOfClass("Humanoid")
+				local r = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+				if h then
+					h.AutoRotate = true
+					h.PlatformStand = false
+					h.Sit = false
+					if h.WalkSpeed <= 0 then h.WalkSpeed = 16 end
+					if h.JumpPower <= 0 and h.UseJumpPower then h.JumpPower = 50 end
+					h:ChangeState(Enum.HumanoidStateType.Running)
+				end
+				if r then r.Anchored = false; r.CanCollide = true end
+				local pm = LocalPlayer:FindFirstChild("PlayerScripts")
+				pm = pm and pm:FindFirstChild("PlayerModule")
+				if pm then require(pm):GetControls():Enable() end
+			end)
 			if _G.JAF_InvisFreezeOnEngage ~= false then
 				pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
 					local pm = LocalPlayer:FindFirstChild("PlayerScripts")
