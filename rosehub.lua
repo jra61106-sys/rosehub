@@ -1,4 +1,3 @@
-
 local SAB_LIVE = function() return true end
 local _SABCAP = {}
 if not LPH_OBFUSCATED then
@@ -43,6 +42,7 @@ do
         return _isACN(inst.ClassName, inst, cls)
     end) end
 _G.JAF_BootReady = false
+_G.JAF_LateInject = game:IsLoaded() == true
 if _G.JAF_BootYield == false then _G.JAF_BootReady = true end
 if _G.JAF_BootYield ~= false then
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -50,16 +50,21 @@ if _G.JAF_BootYield ~= false then
         local t0 = os.clock()
         local cap = tonumber(_G.JAF_BootYieldMax) or 20
         if not game:IsLoaded() then game.Loaded:Wait() end
+        -- late inject (not autoexec): brief settle so AC/packages finish before aggressive hooks
+        if _G.JAF_LateInject then
+            task.wait(tonumber(_G.JAF_LateInjectSettle) or 1.25)
+        end
         local RS = game:GetService("ReplicatedStorage")
         local pkgs = RS:WaitForChild("Packages", 10)
         local netF = pkgs and pkgs:WaitForChild("Net", 10)
         if netF then
             local last, stable = -1, 0
+            local needStable = _G.JAF_LateInject and 3 or 2
             while os.clock() - t0 < cap do
                 local n = #netF:GetChildren()
                 if n == last and n > 0 then
                     stable = stable + 1
-                    if stable >= 2 then break end
+                    if stable >= needStable then break end
                 else
                     stable, last = 0, n
                 end
@@ -777,7 +782,7 @@ return Enum.KeyCode[cleaned] end)
     if ok and kc then return kc end
     return fallback
 end
-local FileName = "gerathub.json"
+local FileName = "rosehub.json"
 do
     if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
         if not isfile(FileName) then
@@ -866,7 +871,7 @@ local DefaultConfig = {
     AntiBeeDisco = false,
     FOV = 70,
     AutoUnlockOnSteal = false,
-    UIScale = 0.9,
+    UIScale = 1,
     PanelScales = {},
     MobileMode      = "auto",
     HubButtonMode   = "auto",
@@ -893,9 +898,8 @@ local DefaultConfig = {
     AutoResetOnBalloon = false,
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
-    CurrentTheme = "orange",
-    CustomThemeHex = "FF9933",
-    AutoDestroyTurrets = false,
+    CurrentTheme = "white",
+    CustomThemeHex = "FFC800",
     ThemeImageUrl = "",
     ShowMiniActions = true,
     MiniUIPos = {X = 0.01, Y = 0.35},
@@ -941,10 +945,6 @@ return HttpService:JSONDecode(readfile(FileName)) end)
         end
         Config = decoded
     end) end
-if not Config._GeratHubScaleMigrated then
-    Config.UIScale = math.clamp((tonumber(Config.UIScale) or 1) * 0.9, 0.5, 1.5)
-    Config._GeratHubScaleMigrated = true
-end
 Config.ProximityAP = false
 if not Config._CloneDelayMigrated then
     Config._CloneDelayMigrated = true
@@ -1242,7 +1242,6 @@ do
         ocean    = {6,14,26, 8,22,42, 14,40,72, 60,130,255, 30,90,210, 238,242,250, 175,195,230, 60,130,255, 210,90,90},
         white    = {18,18,22, 28,28,34, 48,48,56, 235,235,245, 170,170,185, 245,245,248, 185,185,195, 235,235,245, 210,90,90},
         dawg     = {20,13,11, 34,19,17, 60,26,24, 196,42,38, 142,24,22, 246,236,232, 226,184,174, 196,42,38, 255,95,95},
-        orange   = {20,12,5, 34,20,9, 58,32,14, 255,140,0, 230,105,0, 248,244,238, 220,190,160, 255,140,0, 210,90,90},
         custom   = {18,8,38, 25,10,55, 45,15,85, 180,50,255, 130,0,220, 240,240,240, 200,170,230, 180,50,255, 210,90,90},
     }
     for name, rgb in pairs(_PAL) do
@@ -1886,28 +1885,29 @@ if not Config.DefaultWhiteMigrated then
     pcall(SaveConfig)
 end
 do
-    local removedRemap = { red = "rose", green = "ocean", gold = "white", preto = "midnight", pink = "rose" }
+    local removedRemap = { red = "rose", orange = "dawg", green = "ocean", gold = "white", preto = "midnight", pink = "rose" }
     local remapped = removedRemap[Config.CurrentTheme]
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the orange Gerat Hub palette over saved/custom themes. Runs before any panel is built.
+-- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
+-- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
 do
-    Theme.Background       = Color3.fromRGB(92, 38, 0)
-    Theme.Surface          = Color3.fromRGB(125, 52, 0)
-    Theme.SurfaceHighlight = Color3.fromRGB(165, 72, 0)
-    Theme.Accent1          = Color3.fromRGB(255, 153, 51)
-    Theme.Accent2          = Color3.fromRGB(255, 120, 20)
-    Theme.TextPrimary      = Color3.fromRGB(255, 248, 240)
-    Theme.TextSecondary    = Color3.fromRGB(255, 205, 155)
-    Theme.Success          = Color3.fromRGB(255, 185, 80)
-    Theme.Error            = Color3.fromRGB(255, 130, 90)
-    Theme.Stroke           = Color3.fromRGB(255, 145, 45)
-    _G.JAF_ForceMono = false
+    Theme.Background       = Color3.fromRGB(20, 20, 20)
+    Theme.Surface          = Color3.fromRGB(34, 34, 34)
+    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
+    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
+    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
+    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
+    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
+    Theme.Success          = Color3.fromRGB(235, 235, 235)
+    Theme.Error            = Color3.fromRGB(205, 120, 120)
+    Theme.Stroke           = Color3.fromRGB(50, 50, 50)
+    _G.JAF_ForceMono = true
     -- stop later image/custom theming from re-tinting
-    -- Saved legacy theme keys are retained; the Rose appearance editor owns this build.
+    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
 end
-JAF_STYLE = { PanelCorner = 12, PanelBgTransparency = 0, StrokeThickness = 1, StrokeTransparency = 0.35, }
+JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
     {"AutoStealUI"},
     {"JustAFanSettings", "MainPanel"},
@@ -1937,38 +1937,6 @@ function jafUnifyPanelStyle() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if not frame then frame = sg:FindFirstChildWhichIsA("Frame") end
             if frame then pcall(jafStyleOnePanel, frame) end
         end end end
-
--- Gerat Hub: recolor hard-coded near-black surfaces in the hub panels too.
--- Keep the scope limited to this script's own ScreenGuis.
-task.spawn(function()
-    local orangeSurfaces = {
-        Frame = Color3.fromRGB(92, 38, 0),
-        TextButton = Color3.fromRGB(125, 52, 0),
-        TextBox = Color3.fromRGB(105, 43, 0),
-        ScrollingFrame = Color3.fromRGB(82, 33, 0),
-        ImageButton = Color3.fromRGB(125, 52, 0),
-        ImageLabel = Color3.fromRGB(92, 38, 0),
-    }
-    while task.wait(1) do
-        for _, target in ipairs(JAF_STYLE_TARGETS) do
-            local sg = hubFind(target[1])
-            if sg then
-                for _, obj in ipairs(sg:GetDescendants()) do
-                    if obj:IsA("GuiObject") and obj.BackgroundTransparency < 1 then
-                        local c = obj.BackgroundColor3
-                        if c.R < 0.16 and c.G < 0.16 and c.B < 0.16 then
-                            local replacementColor = orangeSurfaces[obj.ClassName]
-                            if replacementColor then
-                                obj.BackgroundColor3 = replacementColor
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
 applyTheme = function(themeName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local t = THEMES[themeName]
     if not t then return end
@@ -2231,340 +2199,6 @@ return math.clamp(math.floor(h + 0.5), math.floor(baseH * MINF), math.floor(base
 pcall(_G.JAF_ApplyUIScale, Config.UIScale or 1) end)
     end end
 local JUI = {}
--- Approved Rose UI, live presentation adapter. Existing controls retain their callbacks.
--- Embedded by build-live-ui.cjs; this file is not a standalone executor script.
-local RoseUI = (function()
-    local R = {}
-    local roots = setmetatable({}, {__mode="k"})
-    local function new(class,parent,p)
-        local o=Instance.new(class)
-        for k,v in pairs(p or {}) do o[k]=v end
-        o.Parent=parent
-        return o
-    end
-    local function round(o,r)
-        local c=o:FindFirstChildOfClass("UICorner") or new("UICorner",o)
-        c.CornerRadius=UDim.new(0,r or 8)
-    end
-    local function label(p,text,x,y,w,h,size)
-        return new("TextLabel",p,{Text=text,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundTransparency=1,TextColor3=Theme.TextPrimary,Font=Enum.Font.GothamBold,TextSize=size or 12,TextTruncate=Enum.TextTruncate.AtEnd,TextXAlignment=Enum.TextXAlignment.Left})
-    end
-    local function button(p,text,x,y,w,h,fn)
-        local b=new("TextButton",p,{Text=text,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),BackgroundColor3=Theme.Surface,BorderSizePixel=0,TextColor3=Theme.TextPrimary,Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=true})
-        round(b,7); b.MouseButton1Click:Connect(fn)
-        return b
-    end
-    function R.panel(p)
-        roots[p]=true
-        p.BackgroundColor3=Theme.Background; p.BackgroundTransparency=0; p.BorderSizePixel=0; round(p,12)
-        local s=p:FindFirstChildOfClass("UIStroke") or new("UIStroke",p)
-        s.Color=Theme.Stroke; s.Thickness=1; s.Transparency=0.35
-        p:SetAttribute("RoseLiveLayout",true)
-        if R.applyGradient then R.applyGradient(p) end
-    end
-    function R.silverTitle(text)
-        -- One native tween, not a per-frame Lua loop. Cancel when the HUD is rebuilt.
-        text.TextColor3=Color3.fromRGB(255,255,255)
-        local gradient=new("UIGradient",text,{
-            Name="RoseSilverShimmer",Rotation=15,Offset=Vector2.new(-0.18,0),
-            Color=ColorSequence.new({
-                ColorSequenceKeypoint.new(0,Color3.fromRGB(153,164,181)),
-                ColorSequenceKeypoint.new(0.35,Color3.fromRGB(193,201,214)),
-                ColorSequenceKeypoint.new(0.5,Color3.fromRGB(255,255,255)),
-                ColorSequenceKeypoint.new(0.65,Color3.fromRGB(193,201,214)),
-                ColorSequenceKeypoint.new(1,Color3.fromRGB(153,164,181)),
-            }),
-        })
-        -- Keep the highlight within the centered lettering; reverse without a fade or reset.
-        local animation=TweenService:Create(gradient,TweenInfo.new(3.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,0),{Offset=Vector2.new(0.18,0)})
-        text.Destroying:Connect(function() animation:Cancel() end)
-        animation:Play()
-    end
-    function R.rows(sf)
-        for _,row in ipairs(sf:GetChildren()) do
-            if row:IsA("GuiObject") then
-                row.Size=UDim2.new(1,-4,row.Size.Y.Scale,row.Size.Y.Offset)
-                if row.BackgroundTransparency<1 then row.BackgroundTransparency=0; round(row,8) end
-            end
-        end
-        for _,o in ipairs(sf:GetDescendants()) do
-            if o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox") then
-                if o.Font~=Enum.Font.GothamBlack then o.Font=Enum.Font.GothamMedium end
-            end
-        end
-    end
-    function R.main(panel,side,nav,content,area,topbar,tabs,buttons,search)
-        R.panel(panel); panel.Size=UDim2.fromOffset(460,532)
-        side.Size=UDim2.fromOffset(56,484); side.AnchorPoint=Vector2.new(0,0.5); side.Position=UDim2.new(0,-68,0.5,0)
-        R.panel(side)
-        for _,o in ipairs(side:GetChildren()) do if o:IsA("Frame") and o~=nav then o.Visible=false end end
-        nav.Position=UDim2.fromOffset(6,6); nav.Size=UDim2.new(1,-12,1,-12)
-        local layout=nav:FindFirstChildOfClass("UIListLayout")
-        if layout then layout.FillDirection=Enum.FillDirection.Vertical; layout.Padding=UDim.new(0,4) end
-        for id,b in pairs(buttons) do
-            b.Size=UDim2.new(1,0,0,43); round(b,10)
-            local l=b:FindFirstChild("TabLbl"); if l then l.Visible=false end
-            local icon=b:FindFirstChild("TabIcon")
-            if icon then icon.Size=UDim2.fromOffset(22,22); icon.AnchorPoint=Vector2.new(0.5,0.5); icon.Position=UDim2.fromScale(0.5,0.5) end
-            local rail=b:FindFirstChild("TabRail"); if rail then rail.Size=UDim2.fromOffset(2,18); rail.Position=UDim2.new(0,-5,0.5,-9) end
-            if id=="grief" then
-                if icon then icon.Visible=false end
-                local ring=new("Frame",b,{Name="RoseGriefIcon",Size=UDim2.fromOffset(20,20),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),BackgroundTransparency=1,BorderSizePixel=0})
-                round(ring,10)
-                local outline=new("UIStroke",ring,{Color=Theme.TextPrimary,Thickness=1.7,ApplyStrokeMode=Enum.ApplyStrokeMode.Border})
-                local marks={}
-                for _,s in ipairs({{2,7,-2},{2,2,5}}) do marks[#marks+1]=new("Frame",ring,{Size=UDim2.fromOffset(s[1],s[2]),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,s[3]),BackgroundColor3=Theme.TextPrimary,BorderSizePixel=0}) end
-                local function syncIcon()
-                    local c=icon and icon.ImageColor3 or Theme.TextPrimary
-                    outline.Color=c
-                    for _,mark in ipairs(marks) do mark.BackgroundColor3=c end
-                end
-                syncIcon()
-                if icon then
-                    local connection=icon:GetPropertyChangedSignal("ImageColor3"):Connect(syncIcon)
-                    b.Destroying:Connect(function() connection:Disconnect() end)
-                end
-            end
-            local hintText=l and l.Text or id
-            local textWidth=#hintText*7
-            pcall(function()
-                textWidth=game:GetService("TextService"):GetTextSize(hintText,12,Enum.Font.GothamMedium,Vector2.new(1000,100)).X
-            end)
-            local hint=label(b,hintText,0,0,math.clamp(math.ceil(textWidth)+24,60,180),30,12)
-            hint.Name="RoseTabHint"; hint.Visible=false; hint.ZIndex=50
-            hint.AnchorPoint=Vector2.new(1,0.5); hint.Position=UDim2.new(0,-14,0.5,0)
-            hint.BackgroundTransparency=0; hint.BackgroundColor3=Theme.Surface
-            hint.BorderSizePixel=0; hint.TextXAlignment=Enum.TextXAlignment.Center
-            hint.TextYAlignment=Enum.TextYAlignment.Center; hint.Font=Enum.Font.GothamMedium
-            round(hint,8)
-            new("UIStroke",hint,{Color=Theme.Stroke,Thickness=1,Transparency=0.35,ApplyStrokeMode=Enum.ApplyStrokeMode.Border})
-            b.MouseEnter:Connect(function() b.ZIndex=40; hint.Visible=true end); b.MouseLeave:Connect(function() hint.Visible=false; b.ZIndex=1 end)
-        end
-        content.Position=UDim2.fromOffset(0,0); content.Size=UDim2.fromScale(1,1)
-        -- Keep a slim drag strip without reserving a visible header row.
-        topbar.Position=UDim2.fromOffset(12,0); topbar.Size=UDim2.new(1,-24,0,10)
-        for _,control in ipairs(topbar:GetChildren()) do
-            if control:IsA("TextButton") or control:IsA("ImageButton") then control.Visible=false end
-        end
-        area.Position=UDim2.fromOffset(14,54); area.Size=UDim2.new(1,-28,1,-68)
-        search.Position=UDim2.fromOffset(14,12); search.Size=UDim2.new(1,-28,0,32)
-        for _,sf in pairs(tabs) do R.rows(sf) end
-        -- Keep the detached dock on-screen on first open, even with an old saved position.
-        local ps=panel.Parent.AbsoluteSize
-        local x=panel.Position.X.Scale*ps.X+panel.Position.X.Offset
-        local y=panel.Position.Y.Scale*ps.Y+panel.Position.Y.Offset
-        if ps.X>0 and ps.Y>0 then panel.Position=UDim2.fromOffset(math.clamp(x,188,math.max(188,ps.X-468)),math.clamp(y,8,math.max(8,ps.Y-540))) end
-        -- Keep the existing menu keybind and saved drag position. No second input handler.
-    end
-    function R.admin(frame,header,prox,tabs,list,blacklist,title,refresh)
-        R.panel(frame); frame.Size=UDim2.fromOffset(520,560)
-        local side=new("Frame",frame,{Name="RoseAdminSidebar",Size=UDim2.new(0,104,1,0),BackgroundTransparency=1})
-        title.Parent=side; title.Text="Rose Admin"; title.Position=UDim2.fromOffset(12,8); title.Size=UDim2.fromOffset(88,28); title.TextSize=12; title.Font=Enum.Font.GothamBlack
-        header.BackgroundTransparency=1; header.Size=UDim2.new(0,104,0,42)
-        tabs.Parent=side; tabs.Position=UDim2.fromOffset(7,48); tabs.Size=UDim2.new(1,-14,0,120)
-        local tl=tabs:FindFirstChildOfClass("UIListLayout"); if tl then tl.FillDirection=Enum.FillDirection.Vertical end
-        for _,b in ipairs(tabs:GetChildren()) do if b:IsA("TextButton") then b.Size=UDim2.new(1,0,0,30); b.TextSize=12; b.Text=b.Text=="PLAYERS" and "Players" or "Settings" end end
-        prox.Position=UDim2.fromOffset(112,8); prox.Size=UDim2.new(1,-120,0,60); prox.BackgroundTransparency=1
-        local n=0
-        for _,b in ipairs(prox:GetChildren()) do if b:IsA("TextButton") then b.Size=UDim2.fromOffset(88,26); b.Position=UDim2.fromOffset(n*94,0); b.TextSize=11; n=n+1 end end
-        refresh.Parent=prox; refresh.Size=UDim2.fromOffset(88,24); refresh.Position=UDim2.fromOffset(0,30); refresh.Text="Refresh"; refresh.TextSize=11
-        list.Position=UDim2.fromOffset(112,76); list.Size=UDim2.new(1,-120,0,0)
-        list.ScrollingEnabled=false; list.ScrollBarThickness=0; list.ClipsDescendants=true
-        list.ScrollBarImageTransparency=1; list.TopImage=""; list.MidImage=""; list.BottomImage=""
-        list.CanvasPosition=Vector2.zero
-        blacklist.Position=UDim2.fromOffset(112,76); blacklist.Size=UDim2.new(1,-120,1,-88)
-        local function fit()
-            if not frame.Parent then return end
-            local count=0
-            for _,r in ipairs(list:GetChildren()) do if r:IsA("GuiObject") then count=count+1 end end
-            local h=count*64+math.max(0,count-1)*6
-            list.Size=UDim2.new(1,-120,0,h)
-            frame.Size=UDim2.fromOffset(520,math.max(240,h+88))
-            local camera=workspace.CurrentCamera
-            if camera and h+88>camera.ViewportSize.Y then
-                if not frame:GetAttribute("RoseHeightWarning") then warn("[Rose UI] Full player roster is taller than this viewport; no players have been hidden."); frame:SetAttribute("RoseHeightWarning",true) end
-            else frame:SetAttribute("RoseHeightWarning",nil) end
-        end
-        list.ChildAdded:Connect(function() task.defer(fit) end); list.ChildRemoved:Connect(function() task.defer(fit) end); fit()
-    end
-    function R.player(row,player,name,badge,status,actions)
-        row.Size=UDim2.new(1,-4,0,64); row.BackgroundTransparency=0; round(row,9)
-        name.Position=UDim2.fromOffset(48,5); name.Size=UDim2.new(1,-160,0,16); name.Text=player.DisplayName; name.Font=Enum.Font.GothamBold; name.TextSize=13
-        label(row,"@"..player.Name,48,22,210,12,10).TextColor3=Theme.TextSecondary
-        local avatar=new("Frame",row,{Name="RosePlayerAvatar",Size=UDim2.fromOffset(32,32),Position=UDim2.fromOffset(8,7),BackgroundColor3=Theme.SurfaceHighlight,BorderSizePixel=0}); round(avatar,9)
-        local initial=label(avatar,string.upper(player.DisplayName:sub(1,1)),0,0,32,32,13); initial.TextXAlignment=Enum.TextXAlignment.Center; initial.TextColor3=Theme.Accent1
-        local userId=tonumber(player.UserId)
-        if userId and userId>0 then
-            -- Keep the image renderable while it loads; don't gate loading on visibility.
-            local photo=new("ImageLabel",avatar,{Name="RoseHeadshot",Size=UDim2.fromScale(1,1),BackgroundTransparency=1,BorderSizePixel=0,Image="rbxthumb://type=AvatarHeadShot&id="..tostring(userId).."&w=150&h=150",ImageColor3=Color3.new(1,1,1),ImageTransparency=0,ScaleType=Enum.ScaleType.Fit,Visible=true,ZIndex=3})
-            round(photo,9)
-            local function loaded()
-                if not avatar.Parent then return end
-                local ready=photo.IsLoaded==true
-                initial.Visible=not ready
-            end
-            local connection=photo:GetPropertyChangedSignal("IsLoaded"):Connect(loaded)
-            avatar.Destroying:Connect(function() connection:Disconnect() end)
-            loaded()
-            task.defer(function()
-                for attempt=1,3 do
-                    if not row.Parent or not avatar.Parent then return end
-                    local ok,content,ready=pcall(function()
-                        return game:GetService("Players"):GetUserThumbnailAsync(userId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size150x150)
-                    end)
-                    if not row.Parent or not avatar.Parent then return end
-                    if ok and ready and type(content)=="string" and content~="" then photo.Image=content end
-                    pcall(function() game:GetService("ContentProvider"):PreloadAsync({photo}) end)
-                    if not row.Parent or not avatar.Parent then return end
-                    loaded()
-                    if photo.IsLoaded then return end
-                    if attempt<3 then task.wait(attempt) end
-                end
-                warn("[Rose UI] Headshot did not load for user "..tostring(userId).."; showing initial.")
-            end)
-        end
-        badge.Position=UDim2.new(1,-108,0,8); badge.Size=UDim2.fromOffset(100,14); badge.TextSize=10
-        status.Position=UDim2.fromOffset(8,44); status.Size=UDim2.new(1,-255,0,14); status.TextSize=10
-        actions.Size=UDim2.fromOffset(240,26); actions.Position=UDim2.new(1,-248,0,35)
-        local i=0
-        for _,b in ipairs(actions:GetChildren()) do if b:IsA("TextButton") then b.Position=UDim2.fromOffset(i*40,0); b.Size=UDim2.fromOffset(36,26); b.TextSize=12; i=i+1 end end
-    end
-    function R.target(row,rank,name,income)
-        row.BackgroundTransparency=0; round(row,8)
-        rank.Size=UDim2.fromOffset(22,22); rank.Position=UDim2.new(0,10,0.5,-11)
-        rank.BackgroundTransparency=0; rank.BackgroundColor3=Theme.Background; round(rank,11)
-        name.Position=UDim2.fromOffset(40,0); name.Size=UDim2.new(1,-122,1,0)
-        if row:FindFirstChild("RoseStolenStatus") then name.Position=UDim2.fromOffset(40,2); name.Size=UDim2.new(1,-122,0,18) end
-        name.TextSize=12; income.TextSize=12
-    end
-    function R.mini(panel,content)
-        R.panel(panel); panel.Size=UDim2.fromOffset(248,360)
-        content.Position=UDim2.fromOffset(10,34); content.Size=UDim2.new(1,-20,1,-44)
-        local group=new("Frame",content,{Name="RoseQuickToggles",BackgroundTransparency=1,Size=UDim2.new(1,0,0,64),LayoutOrder=31})
-        new("UIGridLayout",group,{CellSize=UDim2.new(0.5,-4,0,30),CellPadding=UDim2.fromOffset(8,4),SortOrder=Enum.SortOrder.LayoutOrder})
-        for _,r in ipairs(content:GetChildren()) do
-            if r:IsA("GuiObject") and r~=group then
-                local ord=r.LayoutOrder
-                if ord>=32 and ord<=35 then
-                    r.Parent=group
-                    for _,o in ipairs(r:GetChildren()) do
-                        if o:IsA("TextLabel") then
-                            if o.BackgroundTransparency<1 then
-                                o:SetAttribute("RoseStatusDot",true)
-                                o.Size=UDim2.fromOffset(10,10); o.Position=UDim2.new(1,-18,0.5,-5); o.Text=""; o.TextTransparency=1
-                            else o.Size=UDim2.new(1,-28,1,0); o.Position=UDim2.fromOffset(8,0); o.TextSize=11 end
-                        end
-                    end
-                end
-            end
-        end
-        local h=0; local count=0
-        for _,r in ipairs(content:GetChildren()) do if r:IsA("GuiObject") then h=h+r.Size.Y.Offset; count=count+1 end end
-        panel.Size=UDim2.fromOffset(248,h+math.max(0,count-1)*4+46)
-    end
-    -- Live colors are saved separately; old gameplay/config keys are not renamed.
-    local defaults={S="000000",E="0C0C0C",A="C8C8C8",solid=true,rotation=90}
-    local function copy(t) local n={} for k,v in pairs(t) do n[k]=v end return n end
-    local function color(s) if type(s)~="string" or not s:match("^%x%x%x%x%x%x$") then return nil end return Color3.fromRGB(tonumber(s:sub(1,2),16),tonumber(s:sub(3,4),16),tonumber(s:sub(5,6),16)) end
-    local function hex(c) return string.format("%02X%02X%02X",math.floor(c.R*255+.5),math.floor(c.G*255+.5),math.floor(c.B*255+.5)) end
-    local saved=copy(defaults)
-    local migrateAppearance=Config.RoseAppearanceRevision~=2
-    if not migrateAppearance and type(Config.RoseAppearance)=="table" then for k in pairs(defaults) do local v=Config.RoseAppearance[k]; if (k=="S" or k=="E" or k=="A") and color(v) then saved[k]=v elseif k=="solid" and type(v)=="boolean" then saved[k]=v elseif k=="rotation" and type(v)=="number" then saved[k]=v%360 end end end
-    local current=copy(saved)
-    function R.applyGradient(p)
-        local g=p:FindFirstChild("RoseAppearanceGradient") or new("UIGradient",p,{Name="RoseAppearanceGradient"})
-        g.Enabled=not current.solid; g.Rotation=current.rotation
-        g.Color=ColorSequence.new(Color3.new(1,1,1),color(current.E):Lerp(Color3.new(1,1,1),.72))
-    end
-    function R.colors(state)
-        current=copy(state)
-        local s,e,a=color(state.S),color(state.E),color(state.A)
-        local nextTheme={Background=s,Surface=e,SurfaceHighlight=e:Lerp(Color3.new(1,1,1),0.07),Accent1=a,Accent2=e:Lerp(a,0.2),TextPrimary=Color3.fromRGB(208,208,208),TextSecondary=Color3.fromRGB(160,160,160),Success=Color3.fromRGB(72,199,142),Error=Color3.fromRGB(226,72,82),Stroke=Color3.fromRGB(44,44,44)}
-        if s.R*.299+s.G*.587+s.B*.114>0.55 or e.R*.299+e.G*.587+e.B*.114>0.55 then nextTheme.TextPrimary=Color3.fromRGB(20,24,32); nextTheme.TextSecondary=Color3.fromRGB(60,68,82) end
-        local map={}; for k,v in pairs(nextTheme) do map[Theme[k]]=v end
-        -- Only Rose-owned GUIs; never recolor Roblox's gameplay UI.
-        for _,gui in ipairs(HubGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and ({XiAdminPanel=true,AutoStealUI=true,JustAFanSettings=true,JustAFanMiniActions=true,PriorityListGUI=true,JAFAdvTpSpeed=true,JustAFanStatusHUD=true})[gui.Name] then
-                for _,o in ipairs(gui:GetDescendants()) do
-                    if o:IsA("GuiObject") and map[o.BackgroundColor3] then o.BackgroundColor3=map[o.BackgroundColor3] end
-                    if (o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox")) and map[o.TextColor3] then o.TextColor3=map[o.TextColor3] end
-                    if o:IsA("ImageLabel") and map[o.ImageColor3] then o.ImageColor3=map[o.ImageColor3] end
-                    if o:IsA("UIStroke") and map[o.Color] then o.Color=map[o.Color] end
-                end
-            end
-        end
-        for k,v in pairs(nextTheme) do Theme[k]=v end
-        for p in pairs(roots) do if p.Parent then
-            p.BackgroundColor3=s
-            R.applyGradient(p)
-        end end
-    end
-    function R.appearance(parent,slider)
-        local draft=copy(current)
-        local function preview() R.colors(draft) end
-        local body=new("Frame",parent,{Size=UDim2.new(1,-4,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,LayoutOrder=101})
-        new("UIListLayout",body,{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder})
-        local editors={}
-        local function refresh()
-            for key,entry in pairs(editors) do entry.sw.BackgroundColor3=color(draft[key]); entry.caption.Text=entry.name.."   #"..draft[key] end
-        end
-        for i,item in ipairs({{"Background","S"},{"Surface","E"},{"Accent","A"}}) do
-            local name,key=item[1],item[2]
-            local row=new("Frame",body,{Size=UDim2.new(1,0,0,36),BackgroundColor3=Theme.Surface,BorderSizePixel=0,LayoutOrder=i*10}); round(row)
-            local caption=label(row,name.."   #"..draft[key],12,0,270,36,12)
-            local picker=new("Frame",body,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false,LayoutOrder=i*10+1})
-            new("UIListLayout",picker,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
-            local sw=button(row,"",0,5,26,26,function()
-                if not picker:GetAttribute("Built") then
-                    picker:SetAttribute("Built",true)
-                    local h,s,v=color(draft[key]):ToHSV()
-                    local function changed() draft[key]=hex(Color3.fromHSV(h,s,v)); preview(); refresh() end
-                    slider(picker,1,"Hue",0,360,1,false,h*360,function(n) h=n/360; changed() end,function(n) return tostring(math.floor(n)) end)
-                    slider(picker,2,"Saturation",0,100,1,false,s*100,function(n) s=n/100; changed() end,function(n) return tostring(math.floor(n)).."%" end)
-                    slider(picker,3,"Brightness",0,100,1,false,v*100,function(n) v=n/100; changed() end,function(n) return tostring(math.floor(n)).."%" end)
-                end
-                picker.Visible=not picker.Visible
-            end)
-            sw.Position=UDim2.new(1,-36,0,5); sw.BackgroundColor3=color(draft[key]); editors[key]={sw=sw,caption=caption,name=name,picker=picker}
-        end
-        local actions=new("Frame",body,{Size=UDim2.new(1,0,0,72),BackgroundTransparency=1,LayoutOrder=50})
-        local solid,direction
-        local function labels() solid.Text=draft.solid and "Solid" or "Gradient"; direction.Text="Direction: "..draft.rotation end
-        solid=button(actions,"",0,0,105,28,function() draft.solid=not draft.solid; preview(); labels() end)
-        direction=button(actions,"",113,0,130,28,function() draft.rotation=(draft.rotation+45)%360; preview(); labels() end)
-        local function resetEditors() for _,entry in pairs(editors) do for _,o in ipairs(entry.picker:GetChildren()) do if o:IsA("GuiObject") then o:Destroy() end end entry.picker:SetAttribute("Built",nil); entry.picker.Visible=false end refresh(); labels() end
-        button(actions,"Apply",0,38,90,28,function() saved=copy(draft); Config.RoseAppearance=copy(saved); SaveConfig() end)
-        button(actions,"Cancel",98,38,90,28,function() draft=copy(saved); preview(); resetEditors() end)
-        button(actions,"Reset",196,38,90,28,function() draft=copy(defaults); preview(); resetEditors() end)
-        labels()
-    end
-    -- Presentation-only listener: the embedded engine still owns visibility and progress.
-    function R.watchNearest(playerGui)
-        if _G.RoseUIPresentationCleanup then _G.RoseUIPresentationCleanup() end
-        local connections={}
-        local function connect(signal,fn) connections[#connections+1]=signal:Connect(fn) end
-        local function hook(gui)
-            if gui.Name~="bRXgmsaEVfze" then return end
-            local function style(o)
-                if o:IsA("Frame") and o.Name=="CurrentTargetHUD" then task.defer(function() if o.Parent then R.panel(o) end end) end
-            end
-            for _,o in ipairs(gui:GetDescendants()) do style(o) end
-            connect(gui.DescendantAdded,style)
-        end
-        for _,gui in ipairs(playerGui:GetChildren()) do hook(gui) end
-        connect(playerGui.ChildAdded,hook)
-        _G.RoseUIPresentationCleanup=function() for _,c in ipairs(connections) do c:Disconnect() end; table.clear(connections) end
-    end
-    R.colors(saved)
-    if migrateAppearance then
-        -- One-time requested palette change; later color-picker choices remain persistent.
-        Config.RoseAppearance=copy(saved)
-        Config.RoseAppearanceRevision=2
-        SaveConfig()
-    end
-    return R
-end)()
-
 function JUI.new(class, parent, ...) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local o = Instance.new(class)
     if select("#", ...) > 0 then _P(o, ...) end
@@ -2573,12 +2207,12 @@ function JUI.new(class, parent, ...) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(fal
     local adminFontRoot = _G.JAF_AdminFontRoot
     if (class == "TextLabel" or class == "TextButton" or class == "TextBox")
         and fontRoot and fontRoot.Parent and o:IsDescendantOf(fontRoot) then
-        o.Font = Enum.Font.GothamBold
-        -- Preserve compact explicit text sizes.
+        o.Font = Enum.Font.SourceSansBold
+        if o.TextSize > 0 and o.TextSize < 14 then o.TextSize = 14 end
     elseif (class == "TextLabel" or class == "TextButton" or class == "TextBox")
         and adminFontRoot and adminFontRoot.Parent and o:IsDescendantOf(adminFontRoot) then
-        o.Font = Enum.Font.GothamMedium
-        -- Preserve compact explicit text sizes.
+        o.Font = Enum.Font.SourceSansSemibold
+        if o.TextSize > 0 and o.TextSize < 13 then o.TextSize = 13 end
     end
     return o
 end
@@ -2605,9 +2239,9 @@ function JUI.note(parent, txt, order) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(fa
     JUI.new("TextLabel", row, "Size", UDim2.new(1,-14,1,0), "Position", UDim2.new(0,12,0,0), "BackgroundTransparency", 1, "Text", txt, "Font", Enum.Font.Gotham, "TextSize", 10, "TextColor3", Theme.TextSecondary, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
     return row
 end
-local SW_OFF = Color3.fromRGB(105,45,0)
+local SW_OFF = Color3.fromRGB(140, 140, 155)
 function JUI.toggle(parent, lbl, get, set, order, full) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local row = JUI.new("Frame", parent, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", Theme.Surface, "BackgroundTransparency", 0.08, "BorderSizePixel", 0, "LayoutOrder", order)
+    local row = JUI.new("Frame", parent, "Size", full and UDim2.new(1,0,0,38) or UDim2.new(0.5,-3,0,36), "BackgroundColor3", Theme.Surface, "BackgroundTransparency", 0.08, "BorderSizePixel", 0, "LayoutOrder", order)
     JUI.corner(row, 7)
     JUI.new("TextLabel", row, "Size", UDim2.new(1,-50,1,0), "Position", UDim2.new(0,11,0,0), "BackgroundTransparency", 1, "Text", lbl, "Font", Enum.Font.GothamMedium, "TextSize", 12, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
     local on = get()
@@ -2616,7 +2250,7 @@ function JUI.toggle(parent, lbl, get, set, order, full) LPH_ATTRIBUTES(VM(NONE),
     local dot = JUI.new("Frame", sw, "Size", UDim2.new(0,14,0,14), "Position", on and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7), "BackgroundColor3", _G.JAF_OnAccent())
     JUI.round(dot)
     local swb = JUI.new("TextButton", sw, "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "Text", "", "ZIndex", 4, "AutoButtonColor", false)
-    -- Keep the hitbox on the switch itself: tapping the row/label must not toggle it.
+    if _G.JAF_MobileOn() then _P(swb, "Parent", row, "Size", UDim2.new(1,0,1,0), "Position", UDim2.new(0,0,0,0), "ZIndex", 6) end
     _G.JAF_OnTap(swb, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         if type(set) ~= "function" then return end
         local ns = not get(); set(ns)
@@ -2896,10 +2530,18 @@ local function AddMobileMinimizeAdmin(frame, labelText, headerRef) LPH_ATTRIBUTE
     minimizeBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         frame.Visible = false
         restoreBtn.Visible = true
+        if labelText == "ADMIN" then
+            Config.HideAdminPanel = true
+            pcall(SaveConfig)
+        end
     end)
     restoreBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         frame.Visible = true
         restoreBtn.Visible = false
+        if labelText == "ADMIN" then
+            Config.HideAdminPanel = false
+            pcall(SaveConfig)
+        end
     end) end
 local function _killDarkOverlay() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local host = (gethui and gethui()) or HubGui
@@ -3003,6 +2645,9 @@ local function setCarpetSpeed(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
                 hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
             end end end) end
 local infiniteJumpEnabled = State.infiniteJumpEnabled
+-- Bubble Hub style Infinite Jump (hold / manual)
+_G.JAF_InfJumpMode = _G.JAF_InfJumpMode or "hold"
+local _ijState = { lastJumpTime = 0, manualLock = false }
 local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
     State.infiniteJumpEnabled = enabled
@@ -3014,55 +2659,68 @@ local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if Connections._ijInputEnded then Connections._ijInputEnded:Disconnect(); Connections._ijInputEnded = nil end
     if Connections._ijYRemove then pcall(Connections._ijYRemove); Connections._ijYRemove = nil end
     if not enabled then return end
-    local isSpaceHeld = false
-    local inputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if gp then return end
-        if input.KeyCode == Enum.KeyCode.Space then isSpaceHeld = true end
-    end)
-    local inputEnded = UserInputService.InputEnded:Connect(function(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if input.KeyCode == Enum.KeyCode.Space then isSpaceHeld = false end
-    end)
-    local _ijY, _ijYAtt
-    local function _ijYRemove() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if _ijY then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_ijY:Destroy() end); _ijY = nil end
-        if _ijYAtt then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_ijYAtt:Destroy() end); _ijYAtt = nil end
-    end
-    Connections._ijYRemove = _ijYRemove
-    Connections.infiniteJumpConnection = RunService.RenderStepped:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if not SAB_LIVE() then _ijYRemove(); return end
-        if not isSpaceHeld and not _ijY then return end
+    local function _jv() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return tonumber(_G.JAF_InfJumpVel) or 55 end
+    local function _manualPulse() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if (_G.JAF_InfJumpMode or "hold") ~= "manual" or _ijState.manualLock then return end
+        _ijState.manualLock = true
         local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChild("Humanoid")
-        local _stealing = LocalPlayer:GetAttribute("Stealing") == true
-        if _ijY and (not isSpaceHeld or not _stealing or not hrp or not hum or hum.Health <= 0
-                     or _G.JAF_StealJumpLV == false or (_ijY.Parent ~= hrp)) then
-            _ijYRemove()
-        end
-        if not isSpaceHeld then return end
-        if not hrp or not hum or hum.Health <= 0 then return end
-        if _G.JAF_DropFlingActive then if _ijY then _ijYRemove() end return end
-        local _jv = tonumber(_G.JAF_InfJumpVel) or 50
-        if _stealing and _G.JAF_StealJumpLV ~= false then
-            if not _ijY or _ijY.Parent ~= hrp then
-                _ijYRemove()
-                _ijYAtt = Instance.new("Attachment"); _ijYAtt.Name = "JumpAttachment"; _ijYAtt.Parent = hrp
-                _ijY = Instance.new("LinearVelocity")
-                _ijY.Name = "JumpForce"
-                _P(_ijY, "Attachment0", _ijYAtt, "RelativeTo", Enum.ActuatorRelativeTo.World, "VelocityConstraintMode", Enum.VelocityConstraintMode.Vector, "ForceLimitMode", Enum.ForceLimitMode.PerAxis)
-                _ijY.MaxAxesForce = Vector3.new(0, math.huge, 0)
-                _P(_ijY, "MaxForce", math.huge, "ReactionForceEnabled", true, "Parent", hrp)
+        if not hum or not hrp or hum.Health <= 0 then _ijState.manualLock = false; return end
+        local now = tick()
+        if now - _ijState.lastJumpTime < 0.08 then _ijState.manualLock = false; return end
+        _ijState.lastJumpTime = now
+        local v = hrp.AssemblyLinearVelocity
+        hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
+        task.delay(0.14, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_ijState.manualLock = false end)
+    end
+    Connections._ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
+            if (_G.JAF_InfJumpMode or "hold") == "manual" then
+                _manualPulse()
+            else
+                _ijState.lastJumpTime = tick() - 0.08
             end
-            _ijY.VectorVelocity = Vector3.new(0, _jv, 0)
-        else
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, _jv, hrp.AssemblyLinearVelocity.Z)
-        end end)
-    Connections._ijInputBegan = inputBegan
-    Connections._ijInputEnded = inputEnded
+        end
+    end)
+    Connections.infiniteJumpConnection = RunService.Heartbeat:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if not SAB_LIVE() or not State.infiniteJumpEnabled then return end
+        if (_G.JAF_InfJumpMode or "hold") ~= "hold" then return end
+        if _G.JAF_DropFlingActive or _G.JAF_TpActive then return end
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            local char = LocalPlayer.Character
+            if not char then return end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            local now = tick()
+            local held = UserInputService:IsKeyDown(Enum.KeyCode.Space)
+                or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA)
+                or hum.Jump == true
+            if held and (now - _ijState.lastJumpTime) >= 0.08 then
+                _ijState.lastJumpTime = now
+                local v = hrp.AssemblyLinearVelocity
+                hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
+            end
+        end)
+    end)
 end
-if infiniteJumpEnabled then setInfiniteJump(true) end
+if infiniteJumpEnabled then
+    -- delay start on late inject (not autoexec) so packages/AC settle first
+    if _G.JAF_BootReady == false then
+        task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            local t0 = os.clock()
+            while _G.JAF_BootReady == false and (os.clock() - t0) < 25 do task.wait(0.15) end
+            if State.infiniteJumpEnabled and SAB_LIVE() then setInfiniteJump(true) end
+        end)
+    else
+        setInfiniteJump(true)
+    end
+end
 do
     local floatOn, conn, lastChar
     local function floatOff() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -3159,7 +2817,12 @@ local cleanRagdollV2; cleanRagdollV2 = (function(char) LPH_ATTRIBUTES(VM(NONE), 
     if not char then return end
     pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local et = LocalPlayer:GetAttribute("RagdollEndTime")
-        if et and (et - Workspace:GetServerTimeNow()) > 0 then _G.JAF_RagdollUntil = et end
+        if et and (et - Workspace:GetServerTimeNow()) > 0 then
+            local rem = et - Workspace:GetServerTimeNow()
+            local cap = tonumber(_G.JAF_RagdollStealCap) or 2.6
+            if rem > cap then et = Workspace:GetServerTimeNow() + cap end
+            _G.JAF_RagdollUntil = et
+        end
         LocalPlayer:SetAttribute("RagdollEndTime", 0)
     end)
     local _rootAC = nil
@@ -3425,7 +3088,17 @@ _r.Attachment0 = _rra end) end
             local root = ch:FindFirstChild("HumanoidRootPart")
             _arvLastVel = root and root.AssemblyLinearVelocity or Vector3.zero
         end end) end
-if Config.AntiRagdollV2 ~= false then startAntiRagdollV2(true) end
+if Config.AntiRagdollV2 ~= false then
+    if _G.JAF_LateInject and _G.JAF_BootReady == false then
+        task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            local t0 = os.clock()
+            while _G.JAF_BootReady == false and (os.clock() - t0) < 25 do task.wait(0.15) end
+            if Config.AntiRagdollV2 ~= false and SAB_LIVE() then startAntiRagdollV2(true) end
+        end)
+    else
+        startAntiRagdollV2(true)
+    end
+end
 do
     local plotBeam = nil
     local plotBeamAttachment0 = nil
@@ -3845,10 +3518,24 @@ return _G.JAF_GetSynchronizer() end
     attachResizeGrip(frame, "XiAdminPanel", 0.85)
     AddMobileMinimizeAdmin(frame, "ADMIN", header)
     JUI.new("Frame", header, "Size", UDim2.new(1, -20, 0, 1), "Position", UDim2.new(0, 10, 1, -1), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.35, "BorderSizePixel", 0)
-    local title = JUI.new("TextLabel", header, "Size", UDim2.new(1, -105, 1, 0), "Position", UDim2.new(0, 14, 0, 0), "BackgroundTransparency", 1, "Text", "ADMIN PANEL", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left)
-    local refreshBtn = JUI.new("TextButton", header, "Size", UDim2.new(0, 78, 0, 28), "Position", UDim2.new(1, IS_MOBILE() and -115 or -86, 0.5, -14), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.18, "Text", "REFRESH", "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", Theme.Accent1)
+    local title = JUI.new("TextLabel", header, "Size", UDim2.new(1, -140, 1, 0), "Position", UDim2.new(0, 14, 0, 0), "BackgroundTransparency", 1, "Text", "ADMIN PANEL", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left)
+    local closeAdminBtn = JUI.new("TextButton", header, "Size", UDim2.new(0, 28, 0, 28), "Position", UDim2.new(1, -34, 0.5, -14), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.18, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 14, "TextColor3", Theme.TextPrimary, "AutoButtonColor", false)
+    JUI.corner(closeAdminBtn, 10)
+    local refreshBtn = JUI.new("TextButton", header, "Size", UDim2.new(0, 78, 0, 28), "Position", UDim2.new(1, IS_MOBILE() and -150 or -120, 0.5, -14), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.18, "Text", "REFRESH", "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", Theme.Accent1)
     JUI.corner(refreshBtn, 10)
     local refreshStroke = JUI.stroke(refreshBtn, Theme.Accent1, 1, 0.55)
+    closeAdminBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        adminGui.Enabled = false
+        Config.HideAdminPanel = true
+        pcall(SaveConfig)
+    end)
+    adminGui:GetPropertyChangedSignal("Enabled"):Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        local hidden = not adminGui.Enabled
+        if Config.HideAdminPanel ~= hidden then
+            Config.HideAdminPanel = hidden
+            pcall(SaveConfig)
+        end
+    end)
     local proxCont = JUI.new("Frame", frame, "Size", UDim2.new(1, -20, 0, 42), "Position", UDim2.new(0, 10, 0, 52), "BackgroundColor3", Theme.Surface, "BackgroundTransparency", 0.12)
     JUI.corner(proxCont, 13)
     local proxContStroke = JUI.stroke(proxCont, Theme.SurfaceHighlight, 1, 0.7)
@@ -4061,7 +3748,6 @@ setActiveTab("blacklist") end)
     rebuildBlList()
     listFrame = JUI.new("ScrollingFrame", frame, "Size", UDim2.new(1, -20, 1, -142), "Position", UDim2.new(0, 10, 0, 138), "BackgroundTransparency", 1, "BorderSizePixel", 0, "ScrollBarThickness", 3, "ScrollBarImageColor3", Theme.Accent1, "ScrollBarImageTransparency", 0.45)
     layout = JUI.new("UIListLayout", listFrame, "Padding", UDim.new(0, 6), "SortOrder", Enum.SortOrder.LayoutOrder)
-    RoseUI.admin(frame,header,proxCont,tabBar,listFrame,blFrame,title,refreshBtn)
     setActiveTab("players")
     local getAdminPanelSortKey; getAdminPanelSortKey = (function(plr) LPH_ATTRIBUTES(ERROR_HANDLING(false))
         if not plr or not plr.Parent then return 3, 9999, "" end
@@ -4335,7 +4021,7 @@ _hlParent = game:GetService("CoreGui") end)
     end
     local function _lit(c) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return Color3.new(math.min(c.R*1.35,1), math.min(c.G*1.35,1), math.min(c.B*1.35,1)) end
-    local ROW_CMDS = { {icon = "🔒", cmd = "jail"}, {icon = "🤸‍♂️", cmd = "ragdoll"}, {icon = "🚀", cmd = "rocket"}, {icon = "🎈", cmd = "balloon"} }
+    local ROW_CMDS = { {icon = "JAIL", cmd = "jail"}, {icon = "RAG", cmd = "ragdoll"}, {icon = "RKT", cmd = "rocket"}, {icon = "BLN", cmd = "balloon"} }
     local AJ_BADGE_COLORS = {
         Atlas      = Color3.fromRGB(255, 215,   0),
         Kawaifu    = Color3.fromRGB(255, 120, 200),
@@ -4352,7 +4038,7 @@ row.BackgroundTransparency = 0.08; rowStroke.Transparency = 0.35; rowStroke.Colo
         row.MouseLeave:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 row.BackgroundTransparency = 0.16; rowStroke.Transparency = 0.78; rowStroke.Color = Theme.SurfaceHighlight end)
         local dName = JUI.new("TextLabel", row, "Size", UDim2.new(1, -276, 0, 23), "Position", UDim2.new(0, 12, 0, 5), "BackgroundTransparency", 1, "RichText", true, "Text", plr.Name, "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
-        local NAME_MAX, NAME_MIN, BADGE_SIZE = 13, 12, 10
+        local NAME_MAX, NAME_MIN, BADGE_SIZE = 16, 13, 12
         local _badgeW, _fitKey, _lastBadgeAj = 0, nil, false
         local function _fitAdminName() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if not dName or not dName.Parent then return end
@@ -4488,7 +4174,6 @@ row.BackgroundTransparency = 0.16; rowStroke.Transparency = 0.78; rowStroke.Colo
                 allBtn.TextColor3 = Theme.Accent1
                 if not allHover then allBtn.BackgroundColor3 = Theme.SurfaceHighlight allStroke.Color = Theme.Accent2 end
             end end))
-        RoseUI.player(row,plr,dName,apBadgeLbl,apToolLbl,btnCont)
         local rowHighlight = JUI.new("Frame", row, "Size", UDim2.new(1, 0, 1, 0), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 1, "BorderSizePixel", 0, "ZIndex", 1)
         JUI.corner(rowHighlight, 14)
         row.MouseEnter:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -5606,156 +5291,52 @@ return require(ReplicatedStorage.Packages.Net:FindFirstChildWhichIsA("ModuleScri
         if ok and type(mod) == "table" then Net = mod end
         return Net
     end
-    -- Direct Lefa grapple implementation; LP aliases Rose's local player.
-    local LP = LocalPlayer
-local getRemote
-do
-    local RS  = game:GetService("ReplicatedStorage")
-    local RUN = game:GetService("RunService")
-
-    local _netFolder
-    local function _netDir()
-        if _netFolder then return _netFolder end
-        local pk = RS:FindFirstChild("Packages") or RS:WaitForChild("Packages", 10)
-        if not pk then return nil end
-        _netFolder = pk:FindFirstChild("Net") or pk:WaitForChild("Net", 10)
-        return _netFolder
-    end
-    local _net
-    local function _getNet()
-        if _net then return _net end
-        local dir = _netDir()
-        if not dir then return nil end
-        local ok, m = pcall(require, dir)
-        if ok and type(m) == "table" then _net = m end
-        return _net
-    end
-    local _queue, _hooked, _original = {}, false, nil
-    local function _host()
-        for _, sig in ipairs({ RUN.Heartbeat, RUN.RenderStepped, RUN.PostSimulation }) do
-            local ok, conns = pcall(getconnections, sig)
-            if ok then
-                for _, c in ipairs(conns) do
-                    local f = c.Function
-                    if f and f ~= _G.__lefaSyncHost and islclosure(f) and not isexecutorclosure(f) then
-                        local s = select(2, pcall(debug.info, f, "s"))
-                        if type(s) == "string" and s:find("^ReplicatedStorage%.") and not s:find("ReplicatedFirst") then
-                            return f
-                        end
-                    end
-                end
-            end
+    local _gRem, _gRemJob, _gRemAt = nil, nil, 0
+    local function resolveGrappleRemote() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local pkgs = ReplicatedStorage:FindFirstChild("Packages")
+        local net  = pkgs and pkgs:FindFirstChild("Net")
+        if not net then return nil end
+        local slots, byLeaf = {}, {}
+        for i, ch in ipairs(net:GetChildren()) do
+            local p, rest = string.match(ch.Name, "^(%a+)/(.+)$")
+            if p and #rest == 64 and string.match(rest, "^%x+$") then
+                slots[i] = ch
+                local l = byLeaf[rest]
+                if not l then l = {}; byLeaf[rest] = l end
+                l[#l + 1] = { slot = i, class = ch.ClassName }
+            end end
+        local anchor, dual = nil, 0
+        for _, list in pairs(byLeaf) do
+            if #list > 1 then dual = dual + 1 for _, e in ipairs(list) do if e.class == "RemoteEvent" then anchor = e.slot end end end
         end
-    end
-    local function _install()
-        if _hooked then return true end
-        if not _getNet() then return false end
-        local h = _host()
-        if not h then return false end
-        _G.__lefaNetHost = h
-        local w = function(...)
-            local job = table.remove(_queue, 1)
-            if job then
-                local ok, r = pcall(_net[job.kind], _net, job.name)
-                job.result = (ok and typeof(r) == "Instance") and r or nil
-                job.done = true
-            end
-            return _original(...)
-        end
-        local ok, env = pcall(getfenv, h)
-        if ok and type(env) == "table" then pcall(setfenv, w, env) end
-        _original = hookfunction(h, w)
-        _hooked = true
-        return true
-    end
-    local _cache = {}
-    local function _get(name, kind)
-        kind = (kind == "RemoteFunction" and "RemoteFunction")
-            or (kind == "UnreliableRemoteEvent" and "UnreliableRemoteEvent")
-            or "RemoteEvent"
-        if type(name) ~= "string" or name == "" then return nil end
-        local logical = name:match("^R[EF]/(.+)$") or name:match("^URE/(.+)$") or name
-        local ck = kind .. "|" .. logical
-        local hit = _cache[ck]
-        if hit and hit.Parent then return hit end
-        _cache[ck] = nil
-        if not _getNet() then return nil end
-        if not _install() then return nil end
-        local job = { kind = kind, name = logical }
-        table.insert(_queue, job)
-        local t = os.clock() + (tonumber(_G.LefaNetTimeout) or 5)
-        while not job.done and os.clock() < t do RUN.Heartbeat:Wait() end
-        if job.result and job.result.Parent then
-            _cache[ck] = job.result
-            return job.result
-        end
+        if dual ~= 1 or not anchor then return nil end
+        local t = slots[anchor - 1]
+        if t and t.ClassName == "RemoteEvent" and t.Parent == net then return t end
         return nil
     end
-    _G.__lefaGetRemote = _G.__lefaGetRemote or function(method, name) return _get(name, method) end
-    getRemote = function(method, name) return _get(name, method) end
-end
-
-local GRAPPLE_ARG = 0.8
-local _grappleUseItem, _grappleItemUse
-
-task.spawn(function() _grappleUseItem = getRemote("RemoteEvent", "UseItem") end)
-task.spawn(function() _grappleItemUse = getRemote("RemoteEvent", "75c9466d-e4c0-4b02-b26a-c3615fcc1e42") end)
-
-local function _fireGrapple()
-    local fired = false
-    if not (_grappleUseItem and _grappleUseItem.Parent) then
-        _grappleUseItem = getRemote("RemoteEvent", "UseItem")
+    local function grappleRemote() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if _gRemJob ~= game.JobId then _gRem, _gRemJob, _gRemAt = nil, game.JobId, 0 end
+        if _gRem and _gRem.Parent then return _gRem end
+        _gRem = nil
+        if _gRemAt > 0 and tick() - _gRemAt < (tonumber(_G.JAF_GrappleRemoteRetry) or 2) then return nil end
+        _gRemAt = tick()
+        _gRem = resolveGrappleRemote()
+        return _gRem
     end
-    if not (_grappleItemUse and _grappleItemUse.Parent) then
-        _grappleItemUse = getRemote("RemoteEvent", "75c9466d-e4c0-4b02-b26a-c3615fcc1e42")
-    end
-    if _grappleUseItem and _grappleUseItem.Parent then
-        pcall(function() _grappleUseItem:FireServer(GRAPPLE_ARG) end); fired = true
-    end
-    if _grappleItemUse and _grappleItemUse.Parent then
-        pcall(function() _grappleItemUse:FireServer(GRAPPLE_ARG) end); fired = true
-    end
-    if not fired then
-        local r = getRemote("RemoteEvent", "UseItem")
-        if r then pcall(function() r:FireServer(GRAPPLE_ARG) end); fired = true end
-    end
-    return fired
-end
-
-local function fireGrapple()
-    local char = LP.Character
-    if not char then return false end
-    if not char:FindFirstChild("Grapple Hook") then
-        local bp = LP:FindFirstChild("Backpack")
-        local tool = bp and bp:FindFirstChild("Grapple Hook")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if tool and hum then pcall(function() hum:EquipTool(tool) end) end
-    end
-    if not char:FindFirstChild("Grapple Hook") then return false end
-    return _fireGrapple()
-end
-_G.LefaFireGrapple = _G.LefaFireGrapple or fireGrapple
     local function grappleFireMode() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         local m = _G.JAF_GrappleFireMode
         if m == nil then m = Config.TpSettings and Config.TpSettings.GrappleFireMode end
         return (m == "remote") and "remote" or "firesignal"
     end
-    local _lastRemoteNotice, _lastRemoteNoticeAt = nil, 0
-    local function recordRemoteFailure(why) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        _G.JAF_GrappleRemoteFailures = (tonumber(_G.JAF_GrappleRemoteFailures) or 0) + 1
-        _G.JAF_GrappleRemoteFailureWhy = _G.JAF_GrappleRemoteFailureWhy or why
-        local reason = tostring(_G.JAF_GrappleRemoteFailureWhy)
-        if reason ~= _lastRemoteNotice or tick() - _lastRemoteNoticeAt > 4 then
-            _lastRemoteNotice, _lastRemoteNoticeAt = reason, tick()
-            task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                    game:GetService("StarterGui"):SetCore("SendNotification", {
-                        Title="Rose Grapple Remote", Text=reason, Duration=6,
-                    })
-                end)
-                warn("[Rose Grapple Remote] " .. reason)
-            end)
-        end
+    local function revertToSignal(why) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if grappleFireMode() ~= "remote" then return end
+        _G.JAF_GrappleFireMode = "firesignal"
+        if Config.TpSettings then Config.TpSettings.GrappleFireMode = "firesignal" end
+        _gRemAt = 0
+        _G.JAF_GrappleRemoteRevert    = (tonumber(_G.JAF_GrappleRemoteRevert) or 0) + 1
+        _G.JAF_GrappleRemoteRevertWhy = why
+        pcall(SaveConfig)
+        if type(_G.JAF_SyncGrappleFireRow) == "function" then pcall(_G.JAF_SyncGrappleFireRow) end
     end
     local function fireBoost() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         local g = (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Grapple Hook"))
@@ -5783,21 +5364,18 @@ local fp = hrp:FindFirstChild("FlightPower") if fp then pcall(function() LPH_ATT
 fp:Destroy() end) end end)
         end
         if mode == "remote" then
-            _G.JAF_GrappleRemoteFailureWhy = nil
-            local okF, fired = pcall(fireGrapple)
-            if okF and fired then
-                _G.JAF_GrappleRemoteFired = (tonumber(_G.JAF_GrappleRemoteFired) or 0) + 1
-                _killFlightPower()
-                return
-            end
-            if okF then
-                _G.JAF_GrappleRemoteUnresolved = (tonumber(_G.JAF_GrappleRemoteUnresolved) or 0) + 1
-                recordRemoteFailure("not found")
-            else
+            local r = grappleRemote()
+            if r then
+                local okF = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+r:FireServer(dist / 120, aimPos) end)
+                if okF then _G.JAF_GrappleRemoteFired = (tonumber(_G.JAF_GrappleRemoteFired) or 0) + 1 _killFlightPower() return end
                 _G.JAF_GrappleRemoteErrs = (tonumber(_G.JAF_GrappleRemoteErrs) or 0) + 1
-                recordRemoteFailure("fire failed")
+                revertToSignal("fire failed")
+            else
+                _G.JAF_GrappleRemoteUnresolved = (tonumber(_G.JAF_GrappleRemoteUnresolved) or 0) + 1
+                revertToSignal("not found")
             end
-            return
+            if typeof(firesignal) ~= "function" then return end
         end
         local okPm, pm = pcall(require, ReplicatedStorage.Packages.PlayerMouse)
         if not okPm or type(pm) ~= "table" then return end
@@ -6123,14 +5701,11 @@ _G.JAF_Retarget = function(entry) LPH_ATTRIBUTES(ERROR_HANDLING(false))
         if manualTarget ~= entry then return end
         if _G.JAF_TpActive then return end
         local inBase = (type(_G.JAF_CurrentBase) == "function") and _G.JAF_CurrentBase() or nil
-        if type(_G.JAF_HopToPet) == "function" then
+        if inBase ~= nil and inBase == entry.plot then
             local okH, hopped = pcall(_G.JAF_HopToPet, entry)
             if okH and hopped then return end
         end
-        -- Do not fall back to tpToBestBrainrot here: that function deliberately
-        -- selects the highest-priority item and overrides the user's chosen target.
-        manualTarget = entry
-        SharedState.SetManualTarget(entry)
+        if _G.tpToBestBrainrot then pcall(_G.tpToBestBrainrot) end
     end)
     return true
 end
@@ -10893,7 +10468,13 @@ local _stealStart    = 0
 local _stealProgress = 0
 local _holdEpoch     = 0
 local _ragUntil; _ragUntil = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    return math.max(tonumber(LocalPlayer:GetAttribute("RagdollEndTime")) or 0, tonumber(_G.JAF_RagdollUntil) or 0)
+    local et = math.max(tonumber(LocalPlayer:GetAttribute("RagdollEndTime")) or 0, tonumber(_G.JAF_RagdollUntil) or 0)
+    if et <= 0 then return 0 end
+    local now = workspace:GetServerTimeNow()
+    local rem = et - now
+    local cap = tonumber(_G.JAF_RagdollStealCap) or 2.6
+    if rem > cap then return now + cap end
+    return et
 end
 local _ragBlockedNow; _ragBlockedNow = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     return (_ragUntil() - workspace:GetServerTimeNow() + (tonumber(_G.JAF_RagdollLatePad) or 0.1)) > 0
@@ -11470,7 +11051,6 @@ _G.JAF_StealPingGateRearm = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if _pgKey ~= nil then _pgEntryT = tick() end end
 local _asEdgePrompt, _asEdgeConn = nil, nil
 local function enableEdgeBurst(prompt) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    if _G.ROSE_K7_OWNS_STEAL == true then return end
     if _G.JAF_EnableEdgeBurst ~= true then return end
     if not SAB_LIVE() then return end
     if not prompt or not prompt.Parent or not prompt.Enabled then return end
@@ -11502,7 +11082,6 @@ _asEdgeConn:Disconnect() end); _asEdgeConn = nil end
         if prompt == _asEdgePrompt and prompt.Enabled then enableEdgeBurst(prompt) end
     end) end
 RunService.Heartbeat:Connect(function(dt) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    if _G.ROSE_K7_OWNS_STEAL == true then return end
     if _G.RoseCamp and _G.RoseCamp.active then
         -- While camping, only steal the nearest brainrot in the camped base (never a
         -- global priority pick in a neighbouring base). No camp target = don't steal.
@@ -11923,7 +11502,7 @@ local function drag(handle, target) LPH_ATTRIBUTES(ERROR_HANDLING(false))
             local d = i.Position - ds
             target.Position = UDim2.new(0, sp.X.Offset + d.X, 0, sp.Y.Offset + d.Y)
         end end)) end
-local PANEL_W = 258
+local PANEL_W = 260
 local PANEL_H = 430
 local panel = JUI.new("Frame", sg, "Size", UDim2.new(0, PANEL_W, 0, PANEL_H), "Position", UDim2.new(0, 16, 0, 100), "BackgroundColor3", Theme.Background, "BackgroundTransparency", 0.18, "BorderSizePixel", 0, "ClipsDescendants", true)
 Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 14)
@@ -11937,7 +11516,7 @@ local hdr = JUI.new("Frame", panel, "Size", UDim2.new(1, 0, 0, 38), "BackgroundC
 Instance.new("UICorner", hdr).CornerRadius = UDim.new(0, 14)
 local hdrBot = JUI.new("Frame", hdr, "Size", UDim2.new(1, 0, 0, 10), "Position", UDim2.new(0, 0, 1, -10), "BackgroundColor3", Theme.Surface, "BorderSizePixel", 0)
 local hdrTitle = Instance.new("TextLabel", hdr)
-_P(hdrTitle, "Size", UDim2.new(1, -16, 1, 0), "Position", UDim2.new(0, 14, 0, 0), "BackgroundTransparency", 1, "Text", "Auto Steal", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left)
+_P(hdrTitle, "Size", UDim2.new(1, -16, 1, 0), "Position", UDim2.new(0, 14, 0, 0), "BackgroundTransparency", 1, "Text", "AUTO STEAL", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "TextXAlignment", Enum.TextXAlignment.Left)
 drag(hdr, panel)
 attachResizeGrip(panel, "AutoStealUI")
 local hdrLine = JUI.new("Frame", panel, "Size", UDim2.new(1, 0, 0, 1), "Position", UDim2.new(0, 0, 0, 38), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 0.5, "BorderSizePixel", 0)
@@ -11975,7 +11554,6 @@ toggleBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HA
     pcall(SaveConfig)
     pcall(saveConfig)
 end)
-RoseUI.panel(panel)
 local selectedUID = nil
 local function parseGenShort(s) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     if type(s) ~= "string" then return 0 end
@@ -12048,20 +11626,19 @@ local rebuildList; rebuildList = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDL
     for _, b in ipairs(scroll:GetChildren()) do if b:IsA("Frame") or b:IsA("TextButton") then b:Destroy() end end
     for i, a in ipairs(top10) do
         local isSel = (selectedUID == a.uid)
-        local mutColor = Theme.TextSecondary
+        local mutColor = MUTCOL[a.mutation] or Theme.Accent1
         local function lerpColor(c1,c2,t) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return Color3.new(c1.R+(c2.R-c1.R)*t, c1.G+(c2.G-c1.G)*t, c1.B+(c2.B-c1.B)*t) end
-        local baseRowColor = Theme.Surface
-        local selRowColor = Theme.SurfaceHighlight
-        local row = JUI.new("TextButton", scroll, "Size", UDim2.new(1, -4, 0, 40), "LayoutOrder", i, "BackgroundColor3", isSel and selRowColor or baseRowColor, "BackgroundTransparency", isSel and 0.0 or 0.15, "BorderSizePixel", 0, "Text", "")
+        local baseRowColor = a.mutation and a.mutation ~= "None" and lerpColor(Theme.Background, mutColor, 0.12) or Theme.Surface
+        local selRowColor  = a.mutation and a.mutation ~= "None" and lerpColor(Theme.Surface, mutColor, 0.22) or Theme.SurfaceHighlight
+        local row = JUI.new("TextButton", scroll, "Size", UDim2.new(1, -4, 0, 34), "LayoutOrder", i, "BackgroundColor3", isSel and selRowColor or baseRowColor, "BackgroundTransparency", isSel and 0.0 or 0.15, "BorderSizePixel", 0, "Text", "")
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 7)
         local ss = Instance.new("UIStroke", row)
         _P(ss, "Color", isSel and Theme.Accent1 or mutColor, "Thickness", isSel and 1.2 or 0.7, "Transparency", isSel and 0.1 or 0.7)
         local bar = JUI.new("Frame", row, "Size", UDim2.new(0, 3, 1, -10), "Position", UDim2.new(0, 4, 0, 5), "BackgroundColor3", mutColor, "BorderSizePixel", 0)
-        bar.Visible=false
         Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
         local rk = JUI.new("TextLabel", row, "Size", UDim2.new(0, 24, 1, 0), "Position", UDim2.new(0, 10, 0, 0), "BackgroundTransparency", 1, "Text", tostring(i), "Font", Enum.Font.GothamBold, "TextSize", 13)
-        rk.TextColor3 = isSel and Theme.Accent1 or Theme.TextSecondary
+        rk.TextColor3 = Theme.TextPrimary
         rk.TextXAlignment = Enum.TextXAlignment.Center
         local nameStr = a.name
         local mutTag = ""
@@ -12070,20 +11647,19 @@ return Color3.new(c1.R+(c2.R-c1.R)*t, c1.G+(c2.G-c1.G)*t, c1.B+(c2.B-c1.B)*t) en
         _P(nm, "Size", UDim2.new(1, -110, 1, 0), "Position", UDim2.new(0, 36, 0, 0), "BackgroundTransparency", 1, "Font", Enum.Font.GothamBold, "TextSize", 13, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
         if a.mutation and a.mutation ~= "None" then
             nm.Text = a.mutation .. "  " .. nameStr
-            nm.TextColor3 = Theme.TextPrimary
+            nm.TextColor3 = isSel and Theme.TextPrimary or mutColor
         else
             nm.Text = nameStr
             nm.TextColor3 = Theme.TextPrimary
         end
         if _stolen[a.uid] == true then
             _P(nm, "Size", UDim2.new(1, -110, 0, 18), "Position", UDim2.new(0, 36, 0, 2))
-            local st = JUI.new("TextLabel", row, "Size", UDim2.new(1, -110, 0, 12), "Position", UDim2.new(0, 36, 0, 20), "BackgroundTransparency", 1, "Name", "RoseStolenStatus", "Text", "being stolen", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", T.Err, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
+            local st = JUI.new("TextLabel", row, "Size", UDim2.new(1, -110, 0, 12), "Position", UDim2.new(0, 36, 0, 20), "BackgroundTransparency", 1, "Text", "being stolen", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", T.Err, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
         end
         local gn = Instance.new("TextLabel", row)
         _P(gn, "Size", UDim2.new(0, 70, 1, 0), "Position", UDim2.new(1, -74, 0, 0), "BackgroundTransparency", 1, "Text", a.genText, "Font", Enum.Font.GothamBold, "TextSize", 12)
-        gn.TextColor3 = Theme.TextPrimary
+        gn.TextColor3 = isSel and Theme.TextPrimary or mutColor
         gn.TextXAlignment = Enum.TextXAlignment.Right
-        RoseUI.target(row,rk,nm,gn)
         local ca = a
         row.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
             selectedUID = ca.uid
@@ -12118,16 +11694,12 @@ do
     Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
     local pillStroke = JUI.new("UIStroke", pill, "Color", Theme.Accent1, "Thickness", 2, "Transparency", 0.1)
     _panelRefs.stealBar = pill
-    -- The embedded K7 nearest/camp engine uses this exact pill as its layout source.
-    -- Keeping the reference here lets the two engines swap displays without moving.
-    RoseUI.panel(pill)
-    _G.ROSE_NORMAL_STEAL_BAR = pill
     local nameLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(1, -96, 0, 16), "Position", UDim2.new(0, 12, 0, 5), "BackgroundTransparency", 1, "Text", "—", "Font", Enum.Font.GothamBold, "TextSize", 14)
     _P(nameLbl, "TextColor3", Color3.fromRGB(255,255,255), "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
     local genLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 82, 0, 16), "Position", UDim2.new(1, -90, 0, 5), "BackgroundTransparency", 1, "Text", "", "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", Color3.fromRGB(120,235,150), "TextXAlignment", Enum.TextXAlignment.Right)
     local pctLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 150, 0, 13), "Position", UDim2.new(0, 12, 0, 24), "BackgroundTransparency", 1, "Text", "0%", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Left)
     local secLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 110, 0, 13), "Position", UDim2.new(1, -122, 0, 24), "BackgroundTransparency", 1, "Text", "", "Font", Enum.Font.GothamMedium, "TextSize", 12, "TextColor3", Color3.fromRGB(210,210,215), "TextXAlignment", Enum.TextXAlignment.Right)
-    local track = JUI.new("Frame", pill, "Size", UDim2.new(1,-32,0,3), "Position", UDim2.new(0,16,1,-10), "BackgroundColor3", Color3.fromRGB(105,45,0), "BorderSizePixel", 0)
+    local track = JUI.new("Frame", pill, "Size", UDim2.new(1,-32,0,3), "Position", UDim2.new(0,16,1,-10), "BackgroundColor3", Color3.fromRGB(30,14,50), "BorderSizePixel", 0)
     Instance.new("UICorner", track).CornerRadius = UDim.new(1,0)
     local fill = JUI.new("Frame", track, "Size", UDim2.new(0,0,1,0), "BackgroundColor3", Theme.Accent1, "BorderSizePixel", 0)
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
@@ -12185,6 +11757,8 @@ local _idleT = 0
         end
         local _ret = math.max(tonumber(LocalPlayer:GetAttribute("RagdollEndTime")) or 0, tonumber(_G.JAF_RagdollUntil) or 0)
         local _rem = _ret > 0 and (_ret - workspace:GetServerTimeNow()) or 0
+        local _ragCap = tonumber(_G.JAF_RagdollStealCap) or 2.6
+        if _rem > _ragCap then _rem = _ragCap end
         if _rem > 0.05 then
             if _rem > _ragTotal then _ragTotal = _rem end
             _stealProgress = 0
@@ -12509,11 +12083,14 @@ local function _xraySetTransparency(instance, alpha, id)
             end
             return
         end
-        if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
-            if xrayOrigT[obj] == nil then xrayOrigT[obj] = obj.Transparency end
+        if obj:IsA("BasePart") then
+            if xrayOrigT[obj] == nil then
+                if obj.Transparency == alpha then xrayOrigT[obj] = 0
+                else xrayOrigT[obj] = obj.Transparency end
+            end
             local o = xrayOrigT[obj]
             if o < 1 then
-                local target = alpha
+                local target = o + (1 - o) * alpha
                 if math.abs(obj.Transparency - target) > 0.01 then obj.Transparency = target end
             end
         elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
@@ -12678,7 +12255,7 @@ local function _xraySet(enabled)
         xrayOrigT = setmetatable({}, { __mode = "k" })
         for obj, o in pairs(snap) do
             pcall(function()
-                if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
+                if obj:IsA("BasePart") then
                     obj.Transparency = o
                 elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
                     obj.TextTransparency = o.text
@@ -12719,122 +12296,58 @@ local function _resetMoveToolsToBackpack(character) LPH_ATTRIBUTES(VM(NONE), ERR
     for _, ch in ipairs(character:GetChildren()) do if ch:IsA("Tool") then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 ch.Parent = LocalPlayer.Backpack end) end end
 end
--- Manual reset adapted from the user's message (24).txt.
--- No standalone window, extra keybind, menu override or automatic damage reset.
--- Retains its upward velocity hold, camera hold and queued respawn press.
-local RoseInstantReset = (function()
-    if _G.RoseResetCleanup then pcall(_G.RoseResetCleanup) end
-    local connections = {}
-    local active, busy, queuedUntil = true, false, 0
-    local releaseHold
-    local reset
-    local function track(connection)
-        connections[#connections+1] = connection
-        return connection
-    end
-    local function restoreCamera(character)
-        local camera = Workspace.CurrentCamera
-        if not camera then return end
-        camera.CameraType = Enum.CameraType.Custom
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if humanoid then camera.CameraSubject = humanoid end
-    end
-    local function holdCamera(character)
-        if releaseHold then releaseHold() end
-        local camera = Workspace.CurrentCamera
-        if not camera then return end
-        local cf, focus = camera.CFrame, camera.Focus
-        camera.CameraType = Enum.CameraType.Scriptable
-        local connection = RunService.RenderStepped:Connect(function()
-            if Workspace.CurrentCamera ~= camera then return end
-            camera.CameraType = Enum.CameraType.Scriptable
-            camera.CFrame, camera.Focus = cf, focus
-        end)
-        local released = false
-        local function release()
-            if released then return end
-            released = true
-            connection:Disconnect()
-            restoreCamera(LocalPlayer.Character)
-            releaseHold = nil
-        end
-        releaseHold = release
-        task.delay(3, release)
-    end
-    local function flingBody(character)
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        if not root or not root:IsA("BasePart") then return false end
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local previousStand = humanoid and humanoid.PlatformStand
-        if humanoid then pcall(function()
-            humanoid.PlatformStand = true
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-        end) end
-        -- Use an actual character death request; the old upward-velocity fling
-        -- often left the character alive, so the button appeared to do nothing.
-        local ok = pcall(function()
-            if humanoid and humanoid.Parent then
-                humanoid.Health = 0
-                humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-            end
-            if character.Parent then character:BreakJoints() end
-        end)
-        task.delay(1.5, function()
-            if active and LocalPlayer.Character == character and humanoid and humanoid.Parent and humanoid.Health > 0 then
-                pcall(function() humanoid.PlatformStand = previousStand end)
-            end
-        end)
-        return ok
-    end
-    reset = function()
-        if not active then return false end
-        if busy then return true end
-        local character = LocalPlayer.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        if not character or not humanoid or not root or not root:IsA("BasePart") then
-            return false
-        end
-        if humanoid.Health <= 0 then
-            return true
-        end
-        busy = true
-        holdCamera(character)
-        local ok = flingBody(character)
-        if not ok and releaseHold then releaseHold() end
-        task.delay(3, function() if LocalPlayer.Character == character then busy = false end end)
-        return ok
-    end
-    track(LocalPlayer.CharacterRemoving:Connect(function()
-        if releaseHold then releaseHold() end
-    end))
-    track(LocalPlayer.CharacterAdded:Connect(function(character)
-        busy = false
-        if releaseHold then releaseHold() end
-        task.spawn(function()
-            local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid",5)
-            if not active or LocalPlayer.Character ~= character then return end
-            restoreCamera(character)
-            if queuedUntil == 0 then return end
-            local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart",5)
-            local pending = os.clock() <= queuedUntil
-            queuedUntil = 0
-            if active and pending and LocalPlayer.Character == character and humanoid and humanoid.Health > 0 and root then reset() end
-        end)
-    end))
-    _G.RoseResetCleanup = function()
-        active = false
-        queuedUntil = 0
-        for _,connection in ipairs(connections) do connection:Disconnect() end
-        if releaseHold then releaseHold() end
-    end
-    return reset
-end)()
-
-executeReset = function()
+executeReset = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
-    return RoseInstantReset()
-end
+    if _G.JAF_InstantReset and _G.JAF_InstantReset(50) then return end
+    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+game:GetService("Players").RespawnTime = 0 end)
+    if _G.tpAntiDieDisable then pcall(_G.tpAntiDieDisable) end
+    local respawnConn
+    respawnConn = LocalPlayer.CharacterAdded:Connect(function(newChar) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if respawnConn then respawnConn:Disconnect(); respawnConn = nil end
+        task.defer(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+newChar:WaitForChild("Humanoid", 12) end)
+            RunService.Heartbeat:Wait()
+            if _G.tpAntiDieEnable then pcall(_G.tpAntiDieEnable) end
+        end) end)
+    local character = LocalPlayer.Character
+    if not character then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+LocalPlayer:LoadCharacter() end); return end
+    pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        local function _hr() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return character:FindFirstChildOfClass("Humanoid"), character:FindFirstChild("HumanoidRootPart") end
+        local humanoid, rootPart = _hr()
+        if not (rootPart and humanoid) then return end
+        _resetMoveToolsToBackpack(character)
+        rootPart.CFrame = CFrame.new(0, 15000, 0)
+        RunService.Heartbeat:Wait()
+        _resetMoveToolsToBackpack(character)
+        RunService.Heartbeat:Wait()
+        humanoid, rootPart = _hr()
+        if not (humanoid and rootPart) then return end
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+humanoid.Health = 0 end)
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+humanoid:ChangeState(Enum.HumanoidStateType.Dead) end)
+        if humanoid.Health > 0 then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+humanoid:TakeDamage(humanoid.MaxHealth * 99) end) end
+        if humanoid.Health > 0 then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+character:BreakJoints() end) end
+        humanoid, rootPart = _hr()
+        if humanoid and rootPart and humanoid.Health > 0 then
+            pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                rootPart.AssemblyLinearVelocity = Vector3.zero
+                rootPart.CFrame = CFrame.new(rootPart.Position.X, Workspace.FallenPartsDestroyHeight - 500, rootPart.Position.Z)
+            end) end end)
+    task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        local _origChar = LocalPlayer.Character
+        for _ = 1, 8 do
+            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+LocalPlayer:LoadCharacter() end)
+            task.wait(0.05)
+            if LocalPlayer.Character and LocalPlayer.Character ~= _origChar then break end
+        end end) end
 _G.JAF_ExecuteReset = executeReset
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local function checkSteal(gui) LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -13081,7 +12594,7 @@ end)
 task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
     local oldSS = hubFind("StealSpeedUI")
     if oldSS then oldSS:Destroy() end
-    local MIN_SPEED, MAX_SPEED = 5, 37
+    local MIN_SPEED, MAX_SPEED = 5, 31
     local stealSpeedEnabled = false
     local STEAL_SPEED = math.clamp(math.floor((tonumber(Config.StealSpeed) or 20) + 0.5), MIN_SPEED, MAX_SPEED)
     if Config.StealSpeed ~= STEAL_SPEED then Config.StealSpeed = STEAL_SPEED; SaveConfig() end
@@ -13814,315 +13327,6 @@ rootAC.Attachment0 = rra end) end
                 end end
             RunService.Heartbeat:Wait()
         end end) end)
--- ═══════════════════════════════════════════════════════════════════════════════
--- NEEGY INVIS ENGINE — full verbatim port from the neegy hub (autoexec e.txt).
--- This IS the invis mechanic now. It is wired to rose's _G.toggleInvisibleSteal /
--- _G.invisibleStealEnabled below, so rose's hotkey, config sliders, movement-panel
--- UI and auto-invis-during-steal loop all still drive it. Rose's own invis engine
--- above is left inert (nothing calls its turnOn once the toggle is overridden).
--- Body stands normally (neegy leaves Roblox's animation in charge; the crouch/fold
--- trick only runs if _G.TacoInvisTrickAnimation == true).
--- ═══════════════════════════════════════════════════════════════════════════════
-if _G.TacoInvisDepth == nil then _G.TacoInvisDepth = 4.2 end
-if _G.TacoLagbackTol     == nil then _G.TacoLagbackTol     = 6   end
-if _G.TacoLagbackConfirm == nil then _G.TacoLagbackConfirm = 2   end
-if _G.TacoInvisGuard     == nil then _G.TacoInvisGuard     = true end
-if _G.TacoInvisCooldown  == nil then _G.TacoInvisCooldown  = 0.15 end
-if _G.TacoInvisAngle == nil then _G.TacoInvisAngle = 225 end
-if _G.TacoInvisAuto == nil then _G.TacoInvisAuto = true end
-if _G.TacoInvisAutoDelay == nil then _G.TacoInvisAutoDelay = 0 end
-;(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    local LP = LocalPlayer
-    local active, conns = false, {}
-    local realHRP, cloneHRP, track, hip, origT
-    local stuck, restarting = false, false
-    local start, stop
-    local owner, generation = nil, 0
-
-    local function depth()
-        -- Read Rose's live slider value; retain the standalone engine fallback.
-        local value = tonumber(_G.SinkSliderValue) or tonumber(Config.SinkSliderValue)
-            or tonumber(_G.TacoInvisDepth) or 4.2
-        -- Slider units are studs of additional vertical offset.
-        return math.clamp(value, 0, 10)
-    end
-    local function angle()
-        -- rose's angle slider (InvisStealAngle) drives neegy; falls back to TacoInvisAngle
-        return math.clamp(tonumber(_G.InvisStealAngle or _G.TacoInvisAngle) or 180, 0, 360)
-    end
-    local function add(c) conns[#conns + 1] = c end
-    local function rewire(char, from, to)
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("Weld") or v:IsA("Motor6D") then
-                if v.Part0 == from then v.Part0 = to end
-                if v.Part1 == from then v.Part1 = to end
-            end
-        end
-    end
-
-    stop = function()
-        generation += 1
-        active, stuck = false, false
-        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
-        conns = {}
-        if origT then
-            for p, v in pairs(origT) do
-                if p and p.Parent then pcall(function() p.LocalTransparencyModifier = v end) end
-            end
-            origT = nil
-        end
-        if track then
-            pcall(function() track:AdjustSpeed(1) track:Stop(0) track:Destroy() end)
-            track = nil
-        end
-        local char = owner
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if char == LP.Character and realHRP and realHRP:IsDescendantOf(game) and hum then
-            local tmp = Instance.new("Model")
-            tmp.Parent = game
-            char.Parent = tmp
-            realHRP.Parent = char
-            char.PrimaryPart = realHRP
-            char.Parent = workspace
-            realHRP.CanCollide = true
-            rewire(char, cloneHRP, realHRP)
-            if cloneHRP then
-                local at = cloneHRP.CFrame
-                cloneHRP:Destroy()
-                cloneHRP = nil
-                realHRP.CFrame = at
-            end
-            hum.HipHeight = hip or 0
-            realHRP.Anchored=false
-            realHRP.AssemblyLinearVelocity=Vector3.zero
-            realHRP.AssemblyAngularVelocity=Vector3.zero
-            hum.PlatformStand=false
-            hum.Sit=false
-            hum.AutoRotate=true
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-            if workspace.CurrentCamera then
-                workspace.CurrentCamera.CameraSubject=hum
-                workspace.CurrentCamera.CameraType=Enum.CameraType.Custom
-            end
-            tmp:Destroy()
-        end
-        if char ~= LP.Character and realHRP and realHRP.Parent then realHRP:Destroy() end
-        realHRP, cloneHRP, owner = nil, nil, nil
-        _G.TacoInvisActive = false
-        _G.TacoInvisOn = false
-        _G.invisibleStealEnabled = false
-        if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, false) end
-        if _G.TacoInvisStealRepaint then pcall(_G.TacoInvisStealRepaint,false) end
-    end
-
-    local function animTrick(char, hum)
-        if not (char and hum and hum.Health > 0) then return end
-        local a = Instance.new("Animation")
-        a.AnimationId = "http://www.roblox.com/asset/?id=18537363391"
-        local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
-        track = animator:LoadAnimation(a)
-        track.Priority = Enum.AnimationPriority.Action4
-        track.Looped = true
-        track:Play(0, 1, 0)
-        a:Destroy()
-        add(track.Stopped:Connect(function()
-            if active then animTrick(char, hum) end
-        end))
-        task.defer(function()
-            if not track then return end
-            track.TimePosition = 0.7
-            task.delay(0.1, function() if track then track:AdjustSpeed(math.huge) end end)
-        end)
-    end
-
-    start = function()
-        if _G.NeegyDropActive or _G.NeegyDropInvisBlocked or _G.__TacoResetBusy then return false end
-        local char = LP.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if not hum or active then return false end
-
-        local folder = workspace:FindFirstChild(LP.Name)
-        if folder then
-            for _, n in ipairs({ "DoubleRig", "Constraints" }) do
-                local x = folder:FindFirstChild(n)
-                if x then x:Destroy() end
-            end
-            add(folder.ChildAdded:Connect(function(c)
-                if c.Name == "DoubleRig" or c.Name == "Constraints" then c:Destroy() end
-            end))
-        end
-        for _, s in ipairs({ "Dead", "FallingDown", "Ragdoll" }) do
-            hum:SetStateEnabled(Enum.HumanoidStateType[s], false)
-        end
-
-        hip = hum.HipHeight
-        realHRP = char:FindFirstChild("HumanoidRootPart")
-        if not (realHRP and realHRP.Parent) then return false end
-
-        owner=char
-        generation+=1
-        local tmp = Instance.new("Model")
-        tmp.Parent = game
-        char.Parent = tmp
-        cloneHRP = realHRP:Clone()
-        cloneHRP.Parent = char
-        realHRP.Parent = workspace.CurrentCamera
-        cloneHRP.CFrame = realHRP.CFrame
-        char.PrimaryPart = cloneHRP
-        char.Parent = workspace
-        rewire(char, realHRP, cloneHRP)
-        tmp:Destroy()
-
-        active = true
-        -- Keep the decoy/invisibility rig, but leave Roblox's normal movement
-        -- animation controller in charge. The old forced trick pose caused the
-        -- crouched/climbing look while carrying.
-        local animate = char:FindFirstChild("Animate")
-        if animate then pcall(function() animate.Disabled = false end) end
-        hum.PlatformStand = false
-        hum.Sit = false
-        hum.AutoRotate = true
-        if _G.TacoInvisTrickAnimation == true then animTrick(char, hum) end
-
-        origT = {}
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then
-                origT[p] = p.LocalTransparencyModifier
-                p.LocalTransparencyModifier = 1
-            end
-        end
-        add(char.DescendantAdded:Connect(function(d)
-            if not (active and d:IsA("BasePart")) then return end
-            if origT and origT[d] == nil then origT[d] = d.LocalTransparencyModifier end
-            pcall(function() d.LocalTransparencyModifier = 1 end)
-        end))
-
-        add(RunService.Heartbeat:Connect(function()
-            if not active or not hum.Parent then return end
-            hum.Health = hum.MaxHealth
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            local st = hum:GetState()
-            if st == Enum.HumanoidStateType.Dead or st == Enum.HumanoidStateType.FallingDown
-                or st == Enum.HumanoidStateType.Ragdoll then
-                hum:ChangeState(Enum.HumanoidStateType.Running)
-            end
-        end))
-
-        local lastTarget, grace = nil, 60
-        add(RunService.PreSimulation:Connect(function()
-            if not (active and realHRP and hum.Health > 0) then return end
-            local base = char.PrimaryPart or char:FindFirstChild("HumanoidRootPart")
-            if not base then return end
-            if grace > 0 then
-                grace = grace - 1
-            elseif not stuck and lastTarget then
-                local _drift = (realHRP.Position - lastTarget).Magnitude
-                local _cloneDrift = cloneHRP and (cloneHRP.Position - lastTarget).Magnitude or 0
-                if _drift > 2.25 or _cloneDrift > 8 then
-                    stuck = true
-                    if not restarting then
-                        task.spawn(function()
-                            restarting = true
-                            pcall(stop)
-                            local ticket=generation
-                            task.wait(0.5)
-                            restarting = false
-                            if ticket~=generation or LP.Character~=char or _G.NeegyDropActive or _G.NeegyDropInvisBlocked then return end
-                            local ok = pcall(start)
-                            if not ok then
-                                task.wait(1)
-                                if ticket==generation and LP.Character==char then pcall(start) end
-                            end
-                        end)
-                    end
-                end
-            end
-            -- Zero depth preserves the controlled root's height.
-            local cf = base.CFrame - Vector3.new(0, depth(), 0)
-            realHRP.CFrame = cf * CFrame.Angles(math.rad(angle()), 0, 0)
-            realHRP.AssemblyLinearVelocity = base.AssemblyLinearVelocity
-            realHRP.CanCollide = false
-            if realHRP.Parent ~= workspace.CurrentCamera then
-                realHRP.Parent = workspace.CurrentCamera
-            end
-            lastTarget = cf.Position
-        end))
-
-        add(LP.CharacterAdded:Connect(function() if active then stop() end end))
-        _G.TacoInvisActive = true
-        _G.invisibleStealEnabled = true
-        if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, true) end
-        if _G.__RoseInvisNotify then _G.__RoseInvisNotify("ENGAGED (start ok)") end
-        return true
-    end
-
-    _G.TacoInvisStart, _G.TacoInvisStop = start, stop
-    _G.TacoInvisToggle = function()
-        if active then stop() else start() end
-    end
-    _G.__RoseNeegyInvisActive = function() return active end
-
-    -- Neegy's NATIVE auto-invis-on-steal (its own syncAuto). This is the proven path
-    -- from the neegy hub and has NO own-plot guard, so it fires even near your base.
-    local armed, autoOn = false, false
-    local function syncAuto()
-        if LP:GetAttribute("Stealing") ~= true and not _G.NeegyDropActive then _G.NeegyDropInvisBlocked = false end
-        if _G.NeegyDropActive or _G.NeegyDropInvisBlocked then armed = false; autoOn = false; return end
-        local want = (_G.TacoInvisAuto == true) and (LP:GetAttribute("Stealing") == true)
-        if not want then
-            armed = false
-            if active and autoOn then autoOn = false; pcall(stop) end
-            return
-        end
-        if active or armed then return end
-        armed = true
-        local autoTicket = generation
-        task.delay(tonumber(_G.TacoInvisAutoDelay) or 0, function()
-            armed = false
-            if autoTicket == generation and not _G.NeegyDropActive and not _G.NeegyDropInvisBlocked
-                and _G.TacoInvisAuto == true and not active and LP:GetAttribute("Stealing") == true then
-                autoOn = true
-                pcall(start)
-            end
-        end)
-    end
-    _G.TacoInvisSync = syncAuto
-    LP:GetAttributeChangedSignal("Stealing"):Connect(syncAuto)
-end)()
--- On-screen diagnostic: shows a Roblox toast when invis engages/fails, so you can
--- see whether the engine is firing without opening the executor console. Remove the
--- _G.RoseInvisDebug guard (set it false) to silence.
-if _G.RoseInvisDebug == nil then _G.RoseInvisDebug = false end
-_G.__RoseInvisNotify = function(msg) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    if _G.RoseInvisDebug == false then return end
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Invis", Text = tostring(msg), Duration = 2 })
-    end)
-end
--- Bridge: point rose's invis API at the neegy engine. task.defer guarantees this
--- runs after rose's own (async) invis block has set its toggle, so we win.
-task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    _G.toggleInvisibleSteal = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        if _G.TacoInvisActive then
-            pcall(_G.TacoInvisStop)
-            if _G.__RoseInvisNotify then _G.__RoseInvisNotify("off") end
-        else
-            local ok, started = pcall(_G.TacoInvisStart)
-            if _G.__RoseInvisNotify then
-                _G.__RoseInvisNotify(ok and (started and "ON" or "start returned false") or ("error: " .. tostring(started)))
-            end
-        end
-        _G.invisibleStealEnabled = _G.TacoInvisActive == true
-    end
-    -- keep rose's readers in sync with neegy's real active state (covers internal
-    -- restarts / respawn stops that bypass the toggle)
-    task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        while true do
-            _G.invisibleStealEnabled = _G.TacoInvisActive == true
-            task.wait(0.1)
-        end
-    end)
-end)
 SharedState.ANTI_BEE_DISCO = {
     running = false,
     connections = {},
@@ -14231,10 +13435,8 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
         local mainStroke = Instance.new("UIStroke", main)
         _P(mainStroke, "Color", Theme.Accent1, "Thickness", 1, "Transparency", 0.45)
         if Config.PanelScales then Config.PanelScales["JustAFanStatusHUD"] = nil end
-        RoseUI.panel(main)
         local _splitX = 322
         local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
-        RoseUI.silverTitle(hubName)
         local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
         hubOwner.TextColor3 = Color3.fromRGB(255, 255, 255)
         hubOwner.TextXAlignment = Enum.TextXAlignment.Center
@@ -15388,19 +14590,15 @@ Config[key] = v; SaveConfig() end, order, full)
     local topbar = JUI.new("Frame", content, "Size", UDim2.new(1, -16, 0, 28), "Position", UDim2.new(0, 8, 0, 6), "BackgroundTransparency", 1, "ZIndex", 20)
     MakeDraggable(topbar, panel); attachDragSave(topbar)
     local hcSz = _mob and 40 or 26
-    local hClose = JUI.new("TextButton", topbar, "Size", UDim2.new(0, hcSz, 0, hcSz), "Position", UDim2.new(1, -hcSz, 0.5, -hcSz / 2), "BackgroundColor3", CS.SURF, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", _mob and 24 or 18, "TextColor3", CS.TP, "AutoButtonColor", false, "BorderSizePixel", 0, "ZIndex", 21)
+    local hClose = JUI.new("TextButton", topbar, "Size", UDim2.new(0, hcSz, 0, hcSz), "Position", UDim2.new(1, -hcSz, 0.5, -hcSz / 2), "BackgroundColor3", CS.SURF, "Text", "\u{2013}", "Font", Enum.Font.GothamBold, "TextSize", _mob and 24 or 18, "TextColor3", CS.TP, "AutoButtonColor", false, "BorderSizePixel", 0, "ZIndex", 21)
     JUI.corner(hClose, 6)
-    hClose.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-    hClose.TextColor3 = Color3.fromRGB(255, 255, 255)
     hClose.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 panel.Visible = false end)
     if _G.JAF_SettingsFpsConn then
         pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false)) _G.JAF_SettingsFpsConn:Disconnect() end)
         _G.JAF_SettingsFpsConn = nil
     end
-    searchBox = JUI.new("TextBox", content, "Name", "RoseFeatureSearch", "Size", UDim2.new(1,-28,0,32), "Position", UDim2.fromOffset(14,46), "BackgroundColor3", Theme.Surface, "Text", "", "PlaceholderText", "Search features…", "TextColor3", Theme.TextPrimary, "PlaceholderColor3", Theme.TextSecondary, "Font", Enum.Font.GothamMedium, "TextSize", 12, "TextXAlignment", Enum.TextXAlignment.Left, "ClearTextOnFocus", false, "BorderSizePixel", 0)
-    JUI.corner(searchBox,8)
-    JUI.new("UIPadding",searchBox,"PaddingLeft",UDim.new(0,12),"PaddingRight",UDim.new(0,12))
+    searchBox = nil
     local cArea = JUI.new("Frame", content, "Size", UDim2.new(1, -16, 1, -12), "Position", UDim2.new(0, 8, 0, 4), "BackgroundTransparency", 1, "ClipsDescendants", true)
     local makeScroll; makeScroll = (function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local sf = JUI.new("ScrollingFrame", cArea, "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "BorderSizePixel", 0, "ScrollBarThickness", 0, "ScrollBarImageColor3", Theme.Accent1, "CanvasSize", UDim2.new(0,0,0,0), "AutomaticCanvasSize", Enum.AutomaticSize.Y, "Visible", false)
@@ -15440,13 +14638,12 @@ panel.Visible = false end)
             local ok, err = pcall(fn)
             if not ok then _G.JAF_TabBuildErr = tostring(id) .. ': ' .. tostring(err) end
         end
-        RoseUI.rows(tScrolls2[id])
         if _indexTabRows then _indexTabRows(tScrolls2[id]) end
         if _G.JAF_MobileApplyRows then pcall(_G.JAF_MobileApplyRows, tScrolls2[id]) end
         for _, obj in ipairs(tScrolls2[id]:GetDescendants()) do
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                obj.Font = Enum.Font.GothamBold
-                -- Explicit source text sizes retained.
+                obj.Font = Enum.Font.SourceSansBold
+                if obj.TextSize > 0 and obj.TextSize < 14 then obj.TextSize = 14 end
             end
         end
     end
@@ -15494,7 +14691,7 @@ panel.Visible = false end)
             local dot = JUI.new("Frame", tb, "Name", "TabDot", "Size", UDim2.new(0,7,0,7), "Position", UDim2.new(0,15,0.5,-3), "BackgroundColor3", Theme.Accent1, "BorderSizePixel", 0)
             JUI.round(dot)
         end
-        JUI.new("TextLabel", tb, "Name", "TabLbl", "Size", UDim2.new(1, -48, 1, 0), "Position", UDim2.new(0, 43, 0, 0), "BackgroundTransparency", 1, "Text", td.name, "Font", Enum.Font.GothamBold, "TextSize", 15, "TextColor3", CS.TP, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
+        JUI.new("TextLabel", tb, "Name", "TabLbl", "Size", UDim2.new(1, -48, 1, 0), "Position", UDim2.new(0, 43, 0, 0), "BackgroundTransparency", 1, "Text", td.name, "Font", Enum.Font.SourceSansBold, "TextSize", 15, "TextColor3", CS.TP, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
         if td.action then
             tb.MouseButton1Click:Connect(td.action)
         else
@@ -15645,17 +14842,17 @@ setInfiniteJump(v) end,11)
     _cfgTog(mS,"Auto Steal Speed","AutoStealSpeed",12)
     do
         local _ssBusy = false
-        local _, _ssSet = _sliderRow(mS, 13, "Steal Speed", 5, 37, 1, false,
-            math.clamp(math.floor((tonumber(Config.StealSpeed) or 20) + 0.5), 5, 37),
+        local _, _ssSet = _sliderRow(mS, 13, "Steal Speed", 5, 31, 1, false,
+            math.clamp(math.floor((tonumber(Config.StealSpeed) or 20) + 0.5), 5, 31),
             function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
                 if _ssBusy then return end
                 if SharedState.applyStealSpeedValue then pcall(SharedState.applyStealSpeedValue, v)
-                else Config.StealSpeed = math.clamp(v, 5, 37); SaveConfig() end
+                else Config.StealSpeed = math.clamp(v, 5, 31); SaveConfig() end
             end)
         SharedState._refreshMiniStealSpeedSlider = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if _ssBusy or not _ssSet then return end
             _ssBusy = true
-            pcall(_ssSet, math.clamp(tonumber(Config.StealSpeed) or 20, 5, 37))
+            pcall(_ssSet, math.clamp(tonumber(Config.StealSpeed) or 20, 5, 31))
             _ssBusy = false
         end end
     makeSec(mS,"FACE AWAY",14)
@@ -16058,9 +15255,9 @@ _G.AutoRecoverLagback=v; Config.AutoRecoverLagback=v; SaveConfig() end,1,true)
     _sliderRow(iS, 4, "Rotation", 180, 360, 1, false, Config.InvisStealAngle or 233,
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 Config.InvisStealAngle=v; _G.InvisStealAngle=v end)
-    _sliderRow(iS, 5, "Depth", 0, 5, 0.1, true, Config.SinkSliderValue or 2.5,
+    _sliderRow(iS, 5, "Depth", 0.5, 5, 0.1, true, Config.SinkSliderValue or 2.5,
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.SinkSliderValue=v; _G.SinkSliderValue=v end, nil, "Studs below normal height; 0 = no sinking")
+Config.SinkSliderValue=v; _G.SinkSliderValue=v end, nil, "3-4 recommended")
     makeToggle(iS,"Auto Invis on Steal",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return Config.AutoInvisDuringSteal end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 Config.AutoInvisDuringSteal=v; _G.AutoInvisDuringSteal=v; SaveConfig() end,10,true)
@@ -16206,11 +15403,96 @@ if lbl.Parent then lbl.Text = label end end)
         local rHint = JUI.new("TextLabel", rS, "Size", UDim2.new(1, 0, 0, 40), "BackgroundTransparency", 1, "LayoutOrder", 123, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TS, "TextWrapped", true, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "Text", "Settings reset also clears your blacklist, priority list and keybinds, then needs a rejoin. Positions reset just moves panels back, instantly.")
         rHint:SetAttribute("JAFNoSearch", true)
     end)
-    _addTab("uih", function()
-        local tS=tScrolls2["uih"]
-        makeSec(tS,"Appearance",100)
-        RoseUI.appearance(tS,_sliderRow)
-    end)
+    _addTab("uih", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    local tS = tScrolls2["uih"]
+    local cs = C()
+    makeSec(tS,"THEME",100)
+    do
+        local TDEFS2 = {
+            {"Cyan",     "cyan",     Color3.fromRGB(50,200,255)},
+            {"Midnight", "midnight", Color3.fromRGB(125,135,255)},
+            {"Ocean",    "ocean",    Color3.fromRGB(60,130,255)},
+            {"Ice",      "ice",      Color3.fromRGB(150,220,255)},
+            {"Rose",     "rose",     Color3.fromRGB(255,120,160)},
+            {"White",    "white",    Color3.fromRGB(235,235,245)},
+            {"Dawg",     "dawg",     Color3.fromRGB(196,42,38)},
+        }
+        for i2, td2 in ipairs(TDEFS2) do
+            local r = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,36), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 100 + i2)
+            JUI.corner(r, 7)
+            local dot2 = JUI.new("Frame", r, "Size", UDim2.new(0,12,0,12), "Position", UDim2.new(0,12,0.5,-6), "BackgroundColor3", td2[3], "BorderSizePixel", 0)
+            JUI.round(dot2)
+            JUI.new("TextLabel", r, "Size", UDim2.new(0.5,0,1,0), "Position", UDim2.new(0,32,0,0), "BackgroundTransparency", 1, "Text", td2[1], "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
+            local isActive = (Config.CurrentTheme == td2[2])
+            local apb = JUI.new("TextButton", r, "Size", UDim2.new(0,72,0,24), "Position", UDim2.new(1,-80,0.5,-12), "BackgroundColor3", isActive and td2[3] or cs.SH, "Text", isActive and "ACTIVE" or "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", isActive and _G.JAF_OnAccent() or cs.TP, "AutoButtonColor", false)
+            JUI.corner(apb, 5)
+            local tid2 = td2[2]; local tc2 = td2[3]
+            apb.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                applyTheme(tid2)
+                local c2 = C()
+                for _, ch in ipairs(tS:GetChildren()) do
+                    local b2 = ch:FindFirstChildOfClass("TextButton")
+                    if b2 then _P(b2, "BackgroundColor3", c2.SH, "Text", "APPLY", "TextColor3", c2.TP) end
+                end
+                _P(apb, "BackgroundColor3", tc2, "Text", "ACTIVE", "TextColor3", _G.JAF_OnAccent(tc2))
+            end) end
+        local custRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 150)
+        JUI.corner(custRow, 7)
+        JUI.new("TextLabel", custRow, "Size", UDim2.new(0,46,1,0), "Position", UDim2.new(0,10,0,0), "BackgroundTransparency", 1, "Text", "Custom", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
+        local custBox = JUI.new("TextBox", custRow, "Size", UDim2.new(0,90,0,24), "Position", UDim2.new(0,60,0.5,-12), "BackgroundColor3", cs.SH, "Text", tostring(Config.CustomThemeHex or "B432FF"), "PlaceholderText", "hex e.g. B432FF", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "ClearTextOnFocus", false, "BorderSizePixel", 0)
+        JUI.corner(custBox, 5)
+        local custApply = JUI.new("TextButton", custRow, "Size", UDim2.new(0,72,0,24), "Position", UDim2.new(1,-80,0.5,-12), "BackgroundColor3", cs.SH, "Text", "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", cs.TP, "AutoButtonColor", false, "BorderSizePixel", 0)
+        JUI.corner(custApply, 5)
+        local function applyCustom() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            local hx = custBox.Text:gsub("#",""):gsub("%s","")
+            if buildCustomThemeFromHex(hx) then
+                Config.CustomThemeHex = hx; SaveConfig()
+                custBox.Text = hx
+                applyTheme("custom")
+            else
+                custBox.Text = Config.CustomThemeHex or "B432FF"
+            end end
+        custApply.MouseButton1Click:Connect(applyCustom)
+        custBox.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+if enter then applyCustom() end end)
+        local imgRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 152)
+        JUI.corner(imgRow, 7)
+        JUI.new("TextLabel", imgRow, "Size", UDim2.new(0,40,1,0), "Position", UDim2.new(0,10,0,0), "BackgroundTransparency", 1, "Text", "Image", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
+        local imgBox = JUI.new("TextBox", imgRow, "Size", UDim2.new(1,-130,0,24), "Position", UDim2.new(0,54,0.5,-12), "BackgroundColor3", cs.SH, "Text", tostring(Config.ThemeImageUrl or ""), "PlaceholderText", "paste image URL...", "Font", Enum.Font.Gotham, "TextSize", 11, "TextColor3", cs.TP, "ClearTextOnFocus", false, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd, "BorderSizePixel", 0)
+        JUI.corner(imgBox, 5)
+        local imgApply = JUI.new("TextButton", imgRow, "Size", UDim2.new(0,64,0,24), "Position", UDim2.new(1,-70,0.5,-12), "BackgroundColor3", cs.SH, "Text", "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", cs.TP, "AutoButtonColor", false, "BorderSizePixel", 0)
+        JUI.corner(imgApply, 5)
+        local function applyImg() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            local url = imgBox.Text:gsub("%s","")
+            if url == "" then
+                Config.ThemeImageUrl = ""; SaveConfig()
+                _G.JAF_ThemeImageAsset = nil
+                if jafApplyThemeImageToPanels then pcall(jafApplyThemeImageToPanels, nil) end
+                return
+            end
+            imgApply.Text = "..."
+            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                local ok = nil
+                if jafApplyImageTheme then ok = jafApplyImageTheme(url) end
+                if ok then Config.ThemeImageUrl = url; SaveConfig() end
+                if imgApply and imgApply.Parent then imgApply.Text = "APPLY" end
+            end) end
+        imgApply.MouseButton1Click:Connect(applyImg)
+        imgBox.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+if enter then applyImg() end end)
+        makeToggle(tS, "Animate GIF",
+            function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return Config.GifAnimate ~= false end,
+            function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                Config.GifAnimate = v; SaveConfig()
+                if not v then
+                    if jafStopGifAnimation then jafStopGifAnimation() end
+                elseif _G.JAF_GifUrl and _G.JAF_ThemeImageAsset and jafSetupGifAnimation then
+                    task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+pcall(jafSetupGifAnimation, _G.JAF_GifUrl) end)
+                end
+            end, 153)
+    end end)
     searchResults = JUI.new("ScrollingFrame", cArea, "Name", "FeatureSearchResults", "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "BorderSizePixel", 0, "ScrollBarThickness", 0, "ScrollBarImageColor3", Theme.Accent1, "CanvasSize", UDim2.new(0,0,0,0), "AutomaticCanvasSize", Enum.AutomaticSize.Y, "Visible", false)
     do
         local sll = Instance.new("UIListLayout", searchResults)
@@ -16269,7 +15551,6 @@ runSearch(searchBox.Text) end)
     end
     switchTab2("tp")
     if _G.JAF_MobileApplySheet then pcall(_G.JAF_MobileApplySheet, panel, side, navBox, content, cArea, topbar, tScrolls2) end
-    RoseUI.main(panel,side,navBox,content,cArea,topbar,tScrolls2,tBtns2,searchBox)
     _G.JustAFanSettingsUI = {panel=panel, switchTab=switchTab2, currentTab="tp"}
 end
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -16749,9 +16030,19 @@ buildMobileBarUI = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         else
             btn.Position = UDim2.new(1, -(SZ + 14), 0, _G.JAF_TopInset() + 10)
         end end
-    _P(btn, "BackgroundColor3", Color3.fromRGB(255, 140, 0), "AutoButtonColor", false, "BorderSizePixel", 0, "Text", "GH", "Font", Enum.Font.GothamBlack, "TextSize", 17, "TextColor3", Color3.fromRGB(255, 255, 255), "Active", true, "ZIndex", 10, "Parent", sg)
+    _P(btn, "BackgroundColor3", Theme.Background, "AutoButtonColor", false, "BorderSizePixel", 0, "Text", "", "Active", true, "ZIndex", 10, "Parent", sg)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-    local bStroke = JUI.new("UIStroke", btn, "Color", Color3.fromRGB(255, 205, 120), "Thickness", 2, "Transparency", 0.1)
+    local bStroke = JUI.new("UIStroke", btn, "Color", Theme.TextPrimary, "Thickness", 2, "Transparency", 0.25)
+    local mark = JUI.new("ImageLabel", btn, "Size", UDim2.new(1, 0, 1, 0), "Position", UDim2.new(0.5, 0, 0.5, 0), "AnchorPoint", Vector2.new(0.5, 0.5), "BackgroundTransparency", 1, "ZIndex", 11, "ScaleType", Enum.ScaleType.Crop, "Image", _G.JAF_DawgResolved or "")
+    Instance.new("UICorner", mark).CornerRadius = UDim.new(1, 0)
+    if not (_G.JAF_DawgResolved and _G.JAF_DawgResolved ~= "") then
+        local fb = JUI.new("TextLabel", btn, "Size", UDim2.new(1, 0, 1, 0), "BackgroundTransparency", 1, "ZIndex", 11, "Text", "SD", "Font", Enum.Font.GothamBlack, "TextSize", 20, "TextColor3", Theme.TextPrimary)
+        task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            local ok, a = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return resolveDawgImage() end)
+            if ok and type(a) == "string" and a ~= "" and mark and mark.Parent then
+                mark.Image = a; if fb and fb.Parent then fb:Destroy() end
+            end end) end
     local TRAY_W = 208
     local tray = JUI.new("Frame", sg, "Name", "Tray", "Size", UDim2.new(0, TRAY_W, 0, 260), "BackgroundColor3", Theme.Background, "BackgroundTransparency", 0.06, "BorderSizePixel", 0, "Visible", false, "ZIndex", 8)
     Instance.new("UICorner", tray).CornerRadius = UDim.new(0, 14)
@@ -16899,7 +16190,6 @@ if hint and hint.Parent then hint:Destroy() end end)
 end
 _G.JAF_SheetMaxW = 760
 function _G.JAF_SheetPin(p) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    if p and p:GetAttribute("RoseLiveLayout") then return false end
     if not (p and p.Parent) then return false end
     local ps = p.Parent.AbsoluteSize
     if ps.X < 10 then return false end
@@ -16913,7 +16203,6 @@ function _G.JAF_SheetPin(p) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     return true
 end
 _G.JAF_MobileApplySheet = function(panel, side, navBox, content, cArea, topbar, tScrolls) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    if panel and panel:GetAttribute("RoseLiveLayout") then return end
     if not panel or not panel.Parent then return end
     if not (_G.JAF_MobileOn() and Config.MobileSheet ~= false) then return end
     local ps = panel.Parent.AbsoluteSize
@@ -17026,9 +16315,9 @@ task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     end) end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     task.wait(1.5)
-    if not RoseUI and Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
+    if Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
         pcall(jafApplyImageTheme, Config.ThemeImageUrl)
-    elseif not RoseUI and Config.CurrentTheme == "dawg" and THEMES and THEMES["dawg"] then
+    elseif Config.CurrentTheme == "dawg" and THEMES and THEMES["dawg"] then
         applyTheme("dawg")
     end end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -17138,9 +16427,164 @@ _r.AssemblyAngularVelocity = Vector3.zero end) end
     _SABCAP.JAF_DropBrainrotActive = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return _dropActive end
 end
-_SABCAP.JAF_InstantReset = function()
-    return _G.JAF_ExecuteReset and _G.JAF_ExecuteReset()
-end
+if not _SABCAP.JAF_InstantReset then
+    local _resetRemote   = nil
+    local _rawFS         = nil
+    local _resetFlooding = false
+    local _armCapture
+    do
+        local _arming = false
+        _armCapture = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if _resetRemote or _arming then return end
+        if not hookfunction or _G.JAF_ResetCapture == false then return end
+        _arming = true
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            local newcc = newcclosure or function(f) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return f end
+            local _t0, _restored = os.clock(), false
+            local function _restore(why) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+                if _restored then return end
+                _restored = true
+                pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+hookfunction(Instance.new("RemoteEvent").FireServer, _rawFS) end)
+                _G.JAF_ResetCaptureMs = (os.clock() - _t0) * 1000
+                _G.JAF_ResetCaptureWhy = why
+                _arming = false
+            end
+            local CALLER = tostring(_G.JAF_ResetCaller or "ToolActivationController")
+            local _gcs = getcallingscript
+            local _fireCount = {}
+            local _capture; _capture = (function(self, a1) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                local nm = self.Name
+                if nm:sub(1, 3) ~= "RE/" then return end
+                if not nm:match("^RE/%x%x%x%x%x%x%x%x") then return end
+                local s = _gcs()
+                if not s or s.Name ~= CALLER then return end
+                local c = (_fireCount[self] or 0) + 1
+                _fireCount[self] = c
+                if c >= (tonumber(_G.JAF_ResetMinFires) or 2) then
+                    _resetRemote = self
+                    _G.JAF_ResetRemote = self
+                    _G.JAF_ResetRemoteName = nm
+                    task.defer(_restore, "captured")
+                end end)
+            _rawFS = hookfunction(Instance.new("RemoteEvent").FireServer, newcc((function(self, ...) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                if not _resetRemote and type((...)) == "string" then pcall(_capture, self, (...)) end
+                return _rawFS(self, ...)
+            end)))
+            task.delay(tonumber(_G.JAF_ResetCaptureMax) or 8, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_restore("timeout") end)
+        end) end end
+    _G.JAF_ResetArm = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_armCapture() end
+    if _G.JAF_ResetCaptureAtLoad == true then task.delay(4, _armCapture) end
+    _SABCAP.JAF_InstantReset = function(times) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local function _stowOnce() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            local held = false
+            pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                local ch = LocalPlayer.Character
+                if not ch then return end
+                for _, t in ipairs(ch:GetChildren()) do if t:IsA("Tool") then held = true; break end end
+                if not held then return end
+                local hum = ch:FindFirstChildOfClass("Humanoid")
+                if hum then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+hum:UnequipTools() end) end
+                for _, t in ipairs(ch:GetChildren()) do if t:IsA("Tool") then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+t.Parent = LocalPlayer.Backpack end) end end
+            end)
+            return held
+        end
+        if _G.JAF_ResetJunkFire ~= true then
+            if _resetFlooding then return true end
+            _resetFlooding = true
+            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                if _G.JAF_ResetStowTools ~= false then _G.JAF_ResetStowActive = true _stowOnce() RunService.Heartbeat:Wait() end
+                local _prevShield = _G.JAF_HpShield
+                _G.JAF_HpShield = false
+                if _G.JAF_HpShieldOff then pcall(_G.JAF_HpShieldOff) end
+                local _done = false
+                local _finish = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                    if _done then return end
+                    _done = true
+                    _G.JAF_HpShield = _prevShield
+                    _G.JAF_ResetStowActive = false
+                    _resetFlooding = false
+                end
+                local _rc; _rc = LocalPlayer.CharacterAdded:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                    if _rc then _rc:Disconnect(); _rc = nil end
+                    _finish()
+                end)
+                task.delay(tonumber(_G.JAF_ResetRestoreMax) or 8, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                    if _rc then _rc:Disconnect(); _rc = nil end
+                    _finish()
+                end)
+                pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                    local ch = LocalPlayer.Character
+                    local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
+                        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+hum.BreakJointsOnDeath = true end)
+                        hum:ChangeState(Enum.HumanoidStateType.Dead)
+                    end end) end)
+            return true
+        end
+        local r = _resetRemote or _G.JAF_ResetRemote
+        if not r then
+            _armCapture()
+            local _tw = os.clock()
+            local _lim = tonumber(_G.JAF_ResetArmWait) or 3.5
+            while not _resetRemote and (os.clock() - _tw) < _lim do task.wait(0.1) end
+            r = _resetRemote or _G.JAF_ResetRemote
+        end
+        if not r then return false end
+        if not r.Parent then _G.JAF_ResetRemoteDead = true return false end
+        _G.JAF_ResetRemoteDead = false
+        if _resetFlooding then return true end
+        _resetFlooding = true
+        local _stowed = false
+        if _G.JAF_ResetStowTools ~= false then _G.JAF_ResetStowActive = true _stowed = _stowOnce() end
+        local fs = (_G.JAF_ResetUseRawFS == true and _rawFS) or function(rr, a) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return rr:FireServer(a) end
+        local count = math.clamp(tonumber(times) or tonumber(_G.JAF_ResetBurst) or 50, 1, 50)
+        task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+            local stop, fired = false, 0
+            local conn
+            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+conn = LocalPlayer.CharacterRemoving:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+stop = true end) end)
+            if _G.JAF_ResetStowTools ~= false then
+                local wait0  = math.clamp(tonumber(_G.JAF_ResetStowWait) or 0.25, 0, 1)
+                local cap0   = math.clamp(tonumber(_G.JAF_ResetStowCap) or 1, wait0, 3)
+                local tEnf   = os.clock()
+                local tClean = _stowed and tEnf or (tEnf - wait0)
+                while not stop and (os.clock() - tEnf) < cap0 do
+                    if _stowOnce() then tClean = os.clock() end
+                    if (os.clock() - tClean) >= wait0 then break end
+                    RunService.Heartbeat:Wait()
+                end end
+            local _doFire; _doFire = (function(rr) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+fs(rr, "randomstring") end)
+            local fire; fire = (function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+pcall(_doFire, r); fired = fired + 1 end)
+            local _oldChar = LocalPlayer.Character
+            local t0 = os.clock()
+            local lim = tonumber(_G.JAF_ResetMaxTime) or 3
+            for _ = 1, count do
+                if stop or LocalPlayer.Character ~= _oldChar then break end
+                if (os.clock() - t0) >= lim then break end
+                fire()
+                RunService.Heartbeat:Wait()
+            end
+            _P(_G, "JAF_ResetLastFires", fired, "JAF_ResetLastMs", (os.clock() - t0) * 1000, "JAF_ResetLastOk", (stop or LocalPlayer.Character ~= _oldChar))
+            if conn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+conn:Disconnect() end) end
+            _G.JAF_ResetStowActive = false
+            _resetFlooding = false
+        end)
+        return true
+    end end
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local armed = true
     local lastAutoReset = 0
@@ -17322,8 +16766,8 @@ local c = sig:Connect(fn); table.insert(_G.JAF_MiniUIConns, c); return c end
     local W = 230
     local BTN_H = 28
     local PANEL_H = 430
-    local ROW = Theme.Surface
-    local ROWH = Theme.SurfaceHighlight
+    local ROW  = Theme.Background:Lerp(Color3.fromRGB(255, 255, 255), 0.07)
+    local ROWH = Theme.Background:Lerp(Color3.fromRGB(255, 255, 255), 0.12)
     local EDGE = Color3.fromRGB(255, 255, 255)
     local panel = JUI.new("Frame", maGui, "Name", "MiniPanel", "Size", UDim2.new(0, W, 0, PANEL_H))
     local savedPos = Config.MiniUIPos or {X=0.01, Y=0.35}
@@ -17384,7 +16828,7 @@ b.BackgroundColor3 = ROWH; bs.Transparency = 0.75 end)
 b.BackgroundColor3 = ROW;  bs.Transparency = 0.9  end)
         local function refresh() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             local on = isOn() and true or false
-            _P(chip, "Text", chip:GetAttribute("RoseStatusDot") and "" or (on and "ON" or "OFF"), "BackgroundColor3", on and Theme.Accent1 or Theme.Background, "TextColor3", on and _G.JAF_OnAccent() or Theme.TextSecondary)
+            _P(chip, "Text", on and "ON" or "OFF", "BackgroundColor3", on and Theme.Accent1 or Theme.Background, "TextColor3", on and _G.JAF_OnAccent() or Theme.TextSecondary)
             cs2.Transparency = on and 1 or 0.85
         end
         refresh()
@@ -17488,7 +16932,7 @@ return Config.StealNearest == true end,
             _G.InvisStealAngle = v
             SaveConfig()
         end)
-    miniPreset("Steal Speed", 42, 20, 37,
+    miniPreset("Steal Speed", 42, 20, 27,
         function() LPH_ATTRIBUTES(ERROR_HANDLING(false)) return math.floor((tonumber(Config.StealSpeed) or 20) + 0.5) end,
         function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if SharedState and SharedState.applyStealSpeedValue then pcall(SharedState.applyStealSpeedValue, v)
@@ -17500,6 +16944,7 @@ return Config.StealNearest == true end,
         local hasKickKey = kickKey ~= "" and kickKey:upper() ~= "NONE"
         local row = JUI.new("Frame", cont, "Size", UDim2.new(1, 0, 0, BTN_H), "BackgroundTransparency", 1, "LayoutOrder", 46)
         local rej = halfBtn(row, false, "Rejoin", ROW, Theme.TextPrimary, EDGE, 0.9)
+        if not hasKickKey then rej.Size = UDim2.new(1, 0, 1, 0) end
         rej.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             task.delay(0.5, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
                 local ok = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -17507,10 +16952,10 @@ TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) e
                 if not ok then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 TeleportService:Teleport(game.PlaceId, LocalPlayer) end) end
             end) end)
-        -- Manual kick button: ALWAYS shown, kicks you immediately (same action as Auto Kick).
-        local kickLabel = hasKickKey and ("Kick (" .. kickKey .. ")") or "Kick"
-        local kb = halfBtn(row, true, kickLabel, Color3.fromRGB(180, 40, 60), Color3.new(1, 1, 1), Color3.fromRGB(200, 60, 80), 0.4)
-        kb.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false)) kickPlayer() end)
+        if hasKickKey then
+            local kb = halfBtn(row, true, "Kick (" .. kickKey .. ")", Color3.fromRGB(180, 40, 60), Color3.new(1, 1, 1), Color3.fromRGB(200, 60, 80), 0.4)
+            kb.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false)) kickPlayer() end)
+        end
     end
     miniSec("QUICK ACTIONS", 50)
     do
@@ -17546,46 +16991,26 @@ started = _G.JAF_DropBrainrot() end)
                 if irBtn and irBtn.Parent then _P(irBtn, "Text", "Instant Reset", "BackgroundColor3", Theme.Surface) end
                 irCooling = false
             end) end) end
-    -- ═══ NEW: TELEPORT row (mobile TP + Clone) ═══
     do
-        local row = JUI.new("Frame", cont, "Size", UDim2.new(1, 0, 0, BTN_H),
-            "BackgroundTransparency", 1, "LayoutOrder", 52)
-        local tpBtn = halfBtn(row, false, "TP", ROW, Theme.TextPrimary, EDGE, 0.9)
-        tpBtn.MouseButton1Click:Connect(function()
-            if _G.JAF_CarpetBuyBusy and _G.JAF_CarpetBuyBusy() then
-                if _G.JAF_CancelCarpetBuy then pcall(_G.JAF_CancelCarpetBuy) end
-                return
-            end
-            if _G._activePinConn then _G._activePinConn:Disconnect(); _G._activePinConn = nil end
-            if _G._activePlat and _G._activePlat.Parent then _G._activePlat:Destroy(); _G._activePlat = nil end
-            pcall(function()
-                if _G.tpToBestBrainrot then _G.tpToBestBrainrot() end
-            end)
-        end)
-        local cloneBtn = halfBtn(row, true, "Clone", ROW, Theme.TextPrimary, EDGE, 0.9)
-        cloneBtn.MouseButton1Click:Connect(function()
-            if _G._activePinConn then _G._activePinConn:Disconnect(); _G._activePinConn = nil end
-            if _G._activePlat and _G._activePlat.Parent then _G._activePlat:Destroy(); _G._activePlat = nil end
-            pcall(function()
-                if _G.instantClone then _G.instantClone() end
-            end)
-        end)
-    end
-    -- ═══ END NEW ═══
-    do
-        JUI.new("Frame", cont, "Size", UDim2.new(1, 0, 0, 10), "BackgroundTransparency", 1, "LayoutOrder", 53)
-        mToggle("Auto Destroy Turrets: OFF", "Auto Destroy Turrets: ON", 54,
+        JUI.new("Frame", cont, "Size", UDim2.new(1, 0, 0, 10), "BackgroundTransparency", 1, "LayoutOrder", 52)
+        mToggle("Auto Destroy Turrets: OFF", "Auto Destroy Turrets: ON", 53,
             function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return _G.JAF_AutoTurretActive and _G.JAF_AutoTurretActive() end,
             function(refresh) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                if _G.JAF_ToggleAutoTurret then
-                    local ok, state = pcall(_G.JAF_ToggleAutoTurret)
-                    if ok then Config.AutoDestroyTurrets = state == true end
-                end
-                pcall(SaveConfig)
+                if _G.JAF_ToggleAutoTurret then pcall(_G.JAF_ToggleAutoTurret) end
                 task.defer(refresh)
             end) end
-    RoseUI.mini(panel,cont)
+    do
+        local rows, totalH = {}, 0
+        for _, ch in ipairs(cont:GetChildren()) do
+            if ch:IsA("GuiObject") then
+                local h = ch.Size.Y.Offset
+                if h > 0 then rows[#rows + 1] = { r = ch, h = h }; totalH = totalH + h end
+            end end
+        if totalH > 0 and #rows > 1 then
+            local padTotal = 4 * (#rows - 1)
+            for _, e in ipairs(rows) do local frac = e.h / totalH e.r.Size = UDim2.new(1, 0, frac, -math.floor(padTotal * frac + 0.5)) end
+        end end
     _G.JustAFanMiniActionsUI = {panel = panel, gui = maGui}
     return maGui
 end
@@ -18440,13 +17865,6 @@ obj:Destroy() end)
     end
     local function OClearRigPose(model) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         if not model then return end
-        -- Don't flatten the LOCAL player's pose WHILE invis-steal is active (keeps your
-        -- animation visible during invis). Outside invis (incl. the TP flight) it clears
-        -- normally so the TP doesn't lag back.
-        if _G.JAF_AnimKillSelf ~= true and (_G.TacoInvisActive == true or _G.invisibleStealEnabled == true) then
-            local _lp = OServices.OPlayers.LocalPlayer
-            if _lp and model == _lp.Character then return end
-        end
         pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             local hum = model:FindFirstChildOfClass("Humanoid")
             local animr = hum and hum:FindFirstChildOfClass("Animator")
@@ -18458,15 +17876,6 @@ obj:Destroy() end)
     local function OAnimSkip(animator) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         if _G.JAF_RemoveAnims == false or _G.JAF_FpsOptCharAnim == false then return true end
         if OAnimIsTool(animator) then return true end
-        -- Keep the LOCAL player's own animations ONLY while invis-steal is active, so your
-        -- steal/carry animation stays visible during invis. When NOT invis (idle, and the
-        -- TP flight) your animations are stripped as normal so the TP doesn't get lagged
-        -- back. Others are always stripped for FPS. _G.JAF_AnimKillSelf = true forces your
-        -- own to always strip (even during invis).
-        if _G.JAF_AnimKillSelf ~= true and (_G.TacoInvisActive == true or _G.invisibleStealEnabled == true) then
-            local _lp = OServices.OPlayers.LocalPlayer
-            if _lp and _lp.Character and animator:IsDescendantOf(_lp.Character) then return true end
-        end
         local isPlayerRig = OAnimIsPlayerRig(animator)
         if _G.JAF_AnimKillPlayers == false and isPlayerRig then return true end
         if not isPlayerRig and tick() < _brainrotAnimReadyAt then return true end
@@ -18697,7 +18106,7 @@ task.wait(0.3); OResetCharAnims(ch) end)
                     for _ = 1, 6 do collectgarbage("step", 0) end
                 end end) end end) end)
 ;(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    local autoTurretOn = Config.AutoDestroyTurrets == true
+    local autoTurretOn = true
     local function adt_getChar() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local c = LocalPlayer.Character
         return c, c and c:FindFirstChild("HumanoidRootPart"), c and c:FindFirstChildOfClass("Humanoid")
@@ -18840,8 +18249,6 @@ task.wait(0.3); OResetCharAnims(ch) end)
 return autoTurretOn == true end
     function _G.JAF_ToggleAutoTurret() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         autoTurretOn = not autoTurretOn
-        Config.AutoDestroyTurrets = autoTurretOn
-        pcall(SaveConfig)
         if autoTurretOn then adt_lastDeep = 0 end
         return autoTurretOn
     end
@@ -19685,1588 +19092,4 @@ do
         setEnabled = setEnabled,
         setMode    = function(m) if m == "nearest" or m == "baseowner" then FA.mode = m end end,
     }
-end
-
-RoseUI.watchNearest(PlayerGui)
--- ROSE K7 NEAREST/CAMP INTEGRATION
--- Confirmed K7 runtime, scoped to Rose Nearest and the active Base Camp plot.
-do
-    if type(_G.ROSE_K7_SHUTDOWN) == "function" then pcall(_G.ROSE_K7_SHUTDOWN) end
-    local controllerAlive = true
-    local k7Started = false
-    local k7Starting = false
-    local capturedSetNearest = nil
-    local capturedSetInstant = nil
-
-    local function roseK7Wanted()
-        local camp = _G.RoseCamp
-        return Config.StealNearest == true or (camp and camp.active == true)
-    end
-
-    local function startRoseK7()
-        if k7Started or k7Starting then return end
-        k7Starting = true
-        _G.ROSE_K7_ENABLED = true
-        task.spawn(function()
-            -- =====================  K7 HUB  =====================
-            -- discord.gg/k7hub
-            --
-            --  STEAL MODE - pick how Auto Steal chooses its target.
-            --  Change the value below, then run the script.
-            --
-            --     "Nearest"  closest brainrot to you
-            --     "Highest"  highest generation on the server
-            --     "Instant"  closest brainrot, instant-steal mode
-            --
-            --  This is applied every launch and overrides whatever
-            --  was saved in K7Hub.json.
-            -- ====================================================
-            getgenv().K7_STEAL_MODE = "Instant"
-            -- ====================================================
-            pcall(function()
-                if setthreadidentity then
-                    setthreadidentity(8)
-                end
-            end)
-            local P = game:GetService("Players")
-            local C = P.LocalPlayer
-            if not game:IsLoaded() then
-                game.Loaded:Wait()
-            end
-            local P = {
-                SelectedPetData = nil,
-                AllAnimalsCache = nil,
-                DisableStealSpeed = nil,
-                ListNeedsRedraw = true,
-                StealSpeedToggleFunc = nil,
-                _ssUpdateBtn = nil,
-                BalloonedPlayers = {},
-                MobileScaleObjects = {},
-                RefreshMobileScale = nil,
-                MobileActionButtons = {},
-                RefreshMobileActionButtons = nil,
-            }
-            do
-                local C = { AUTO_STEAL = false, RADIUS = 12 }
-                local r =
-                    {
-                        {
-                            min = Vector3.new(-337.448303, -3.898971, -122.397758),
-                            max = Vector3.new(-328.004578, -3.898971, 242.625626),
-                        },
-                        {
-                            min = Vector3.new(-327.25766, -3.899109, -122.228622),
-                            max = Vector3.new(-320.600891, -3.899109, 242.612259),
-                        },
-                        {
-                            min = Vector3.new(-319.783386, -3.89897, -122.227089),
-                            max = Vector3.new(-312.908325, -3.89897, 242.585617),
-                        },
-                        {
-                            min = Vector3.new(-312.445648, -3.899108, -122.389832),
-                            max = Vector3.new(-305.489899, -3.899108, 242.456818),
-                        },
-                        {
-                            min = Vector3.new(-305.037048, -3.89897, -122.230743),
-                            max = Vector3.new(-293.957489, -3.89897, 242.606873),
-                        },
-                        {
-                            min = Vector3.new(-491.448608, -3.898972, -122.253258),
-                            max = Vector3.new(-481.811737, -3.898972, 242.615005),
-                        },
-                        {
-                            min = Vector3.new(-498.971069, -3.89897, -122.382767),
-                            max = Vector3.new(-491.74884, -3.89897, 242.612061),
-                        },
-                        {
-                            min = Vector3.new(-506.436737, -3.898972, -122.411476),
-                            max = Vector3.new(-499.318542, -3.898972, 242.615982),
-                        },
-                        {
-                            min = Vector3.new(-513.783569, -3.898972, -122.223297),
-                            max = Vector3.new(-506.801849, -3.898972, 242.62709),
-                        },
-                        {
-                            min = Vector3.new(-525.236938, -3.898972, -122.409813),
-                            max = Vector3.new(-514.265015, -3.898972, 242.608932),
-                        },
-                    }
-                local R = game:GetService("Players")
-                local d = game:GetService("RunService")
-                local n = R.LocalPlayer
-                do
-                    local R
-                    local function f()
-                        n.DevEnableMouseLock = true
-                        n.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-                        if R then
-                            R:Disconnect()
-                        end
-                        R = d.RenderStepped:Connect(function()
-                            local R = workspace.CurrentCamera
-                            if R and R.CameraSubject and R.CameraType == Enum.CameraType.Custom then
-                                R.CFrame = R.CFrame
-                            end
-                        end)
-                    end
-                    f()
-                    n.CharacterAdded:Connect(function()
-                        task.wait(0.5)
-                        f()
-                    end)
-                end
-                local R = {}
-                local d = {}
-                local f = 0
-                function _G.getSafePollRate()
-                    if os.clock() < f then
-                        return 0.27
-                    end
-                    return 0.1
-                end
-                function _G.triggerSafePollBoost()
-                    f = os.clock() + 3
-                end
-                local f = {}
-                local function J()
-                    local a = n.Character
-                    return a and a:FindFirstChild("HumanoidRootPart")
-                end
-                local function n(a)
-                    for e, x in ipairs(r) do
-                        if
-                            a.X >= math.min(x.min.X, x.max.X)
-                            and a.X <= math.max(x.min.X, x.max.X)
-                            and a.Z >= math.min(x.min.Z, x.max.Z)
-                            and a.Z <= math.max(x.min.Z, x.max.Z)
-                        then
-                            return e
-                        end
-                    end
-                end
-                local function r(a)
-                    local e = a.Parent
-                    if not e then
-                        return
-                    end
-                    if e:IsA("Attachment") and e.Parent then
-                        e = e.Parent
-                    end
-                    if e:IsA("BasePart") then
-                        return e.Position
-                    elseif e:IsA("Model") then
-                        return e:GetPivot().Position
-                    end
-                end
-                local function a(e)
-                    if not P then
-                        return false
-                    end
-                    local x = P.SelectedPetData
-                    if not x then
-                        return false
-                    end
-                    local Q = e:FindFirstAncestorOfClass("Model")
-                    if not Q then
-                        return false
-                    end
-                    if x.plot then
-                        local V = e:FindFirstAncestor(x.plot)
-                        if not V then
-                            return false
-                        end
-                    end
-                    if x.slot then
-                        local V = e:FindFirstAncestor(x.slot)
-                        if V then
-                            return true
-                        end
-                        if Q.Name == x.slot then
-                            return true
-                        end
-                        if Q.Parent and Q.Parent.Name == x.slot then
-                            return true
-                        end
-                    end
-                    if x.name then
-                        local e = string.lower(x.name)
-                        local x = Q
-                        while x do
-                            if x.Name and string.lower(x.Name) == e then
-                                return true
-                            end
-                            x = x.Parent
-                        end
-                    end
-                    return false
-                end
-                local function e(x, Q)
-                    if _G.ROSE_K7_ENABLED ~= true then return false end
-                    local camp = _G.RoseCamp
-                    if camp and camp.active == true then
-                        local plots = workspace:FindFirstChild("Plots")
-                        local plot = x
-                        while plot and plots and plot.Parent ~= plots do plot = plot.Parent end
-                        if not plots or not plot or plot.Parent ~= plots or plot.Name ~= camp.plotName then return false end
-                    end
-                    if not x or not x.Parent then
-                        return false
-                    end
-                    if not x.Enabled then
-                        return false
-                    end
-                    local V = r(x)
-                    if not V then
-                        return false
-                    end
-                    local r = x:FindFirstAncestorOfClass("Model")
-                    if r then
-                        local r = workspace:FindFirstChild("Plots")
-                        if r then
-                            local i = x:FindFirstAncestorWhichIsA("Model")
-                            while i and i.Parent ~= r do
-                                i = i.Parent
-                            end
-                            if i then
-                                local r = i:FindFirstChild("PlotSign")
-                                if r then
-                                    local i = r:FindFirstChildWhichIsA("SurfaceGui", true)
-                                    local r = i and i:FindFirstChildWhichIsA("TextLabel", true)
-                                    if r then
-                                        local i = r.Text:lower()
-                                        if
-                                            i:find(game.Players.LocalPlayer.Name:lower(), 1, true)
-                                            or i:find(game.Players.LocalPlayer.DisplayName:lower(), 1, true)
-                                        then
-                                            return false
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if _G.NEAREST_INSTANT_MODE == true then
-                        local r = n(Q)
-                        local i = n(V)
-                        if not r or r ~= i then
-                            return false
-                        end
-                    end
-                    if _G.NEAREST_INSTANT_MODE ~= true then
-                        if not a(x) then
-                            return false
-                        end
-                    end
-                    local r = typeof(x.MaxActivationDistance) == "number"
-                            and x.MaxActivationDistance > 0
-                            and x.MaxActivationDistance
-                        or C.RADIUS
-                    local n = math.min(C.RADIUS, r)
-                    return (V - Q).Magnitude <= n
-                end
-                local function r(n, a)
-                    local x = os.clock()
-                    local Q = d[n]
-                    if Q and x - Q < a then
-                        return false
-                    end
-                    d[n] = x
-                    return true
-                end
-                local function n(a, x, Q)
-                    if not a or not a.Parent then
-                        return
-                    end
-                    if not a.Enabled then
-                        return
-                    end
-                    if not r(a, Q) then
-                        return
-                    end
-                    for r = 1, x do
-                        pcall(function()
-                            fireproximityprompt(a, 0)
-                        end)
-                    end
-                end
-                local function r(a)
-                    if R[a] then
-                        return
-                    end
-                    R[a] = true
-                    local function x()
-                        local Q = J()
-                        if not Q then
-                            return
-                        end
-                        local V = Q.Position
-                        if e(a, V) then
-                            C.AUTO_STEAL = true
-                            local Q = os.clock()
-                            local V = f[a]
-                            if not V or Q - V >= 0.08 then
-                                f[a] = Q
-                                n(a, 25, 0)
-                            end
-                        end
-                    end
-                    task.defer(function()
-                        x()
-                    end)
-                    pcall(function()
-                        a:GetPropertyChangedSignal("Enabled"):Connect(function()
-                            if a.Enabled then
-                                x()
-                            end
-                        end)
-                    end)
-                    a.AncestryChanged:Connect(function()
-                        if not a:IsDescendantOf(workspace) then
-                            R[a] = nil
-                            d[a] = nil
-                            f[a] = nil
-                        end
-                    end)
-                end
-                local function d()
-                    local f = workspace:FindFirstChild("Plots")
-                    if not f then
-                        return
-                    end
-                    for a, a in ipairs(f:GetChildren()) do
-                        local f = a:FindFirstChild("AnimalPodiums")
-                        if f then
-                            for a, a in ipairs(f:GetDescendants()) do
-                                if a:IsA("ProximityPrompt") then
-                                    r(a)
-                                end
-                            end
-                        end
-                    end
-                end
-                d()
-                workspace.DescendantAdded:Connect(function(d)
-                    if d:IsA("ProximityPrompt") and d:FindFirstAncestor("AnimalPodiums") then
-                        r(d)
-                    end
-                end)
-                task.spawn(function()
-                    while task.wait(_G.getSafePollRate()) do
-                        local r = J()
-                        if not r then
-                            C.AUTO_STEAL = false
-                            continue
-                        end
-                        local d = r.Position
-                        local r = false
-                        for f in pairs(R) do
-                            if e(f, d) then
-                                r = true
-                                if C.AUTO_STEAL then
-                                    n(f, 3, 0.12)
-                                end
-                            end
-                        end
-                        C.AUTO_STEAL = r
-                    end
-                end)
-            end
-            local C = {
-                Players = game:GetService("Players"),
-                RunService = game:GetService("RunService"),
-                UserInputService = game:GetService("UserInputService"),
-                ReplicatedStorage = game:GetService("ReplicatedStorage"),
-                TweenService = game:GetService("TweenService"),
-                HttpService = game:GetService("HttpService"),
-                Workspace = game:GetService("Workspace"),
-                Lighting = game:GetService("Lighting"),
-                GuiService = game:GetService("GuiService"),
-                TeleportService = game:GetService("TeleportService"),
-            }
-            local r = C.Players
-            local R = C.RunService
-            local d = C.UserInputService
-            local n = C.ReplicatedStorage
-            local f = C.TweenService
-            local J = C.HttpService
-            local a = C.Workspace
-            local e = C.Lighting
-            local e = C.GuiService
-            local e = C.TeleportService
-            local C = r.LocalPlayer
-            local x = C:WaitForChild("PlayerGui")
-            -- Test 14: minimal state required by the synchronized nearest-instant scanner.
-            local k7Input = game:GetService("UserInputService")
-            local d = k7Input.TouchEnabled and not k7Input.KeyboardEnabled and not k7Input.MouseEnabled
-            local i = {
-                DefaultToNearest = true,
-                DefaultToHighest = false,
-                DefaultToPriority = false,
-                StealNearest = true,
-                StealHighest = false,
-                StealPriority = false,
-                AutoTPPriority = true,
-                InstantSteal = true,
-            }
-            local X = {}
-            local function U() end
-            local function M(item)
-                if not item then return nil end
-                local plot = a:FindFirstChild("Plots") and a.Plots:FindFirstChild(item.plot)
-                local podiums = plot and plot:FindFirstChild("AnimalPodiums")
-                local slot = podiums and podiums:FindFirstChild(item.slot)
-                local base = slot and slot:FindFirstChild("Base")
-                if not base then return nil end
-                return base:FindFirstChild("Spawn") or base:FindFirstChildWhichIsA("BasePart") or base
-            end
-            
-            task.spawn(function()
-                local S = n:WaitForChild("Packages")
-                local CG = n:WaitForChild("Datas")
-                local rG = n:WaitForChild("Shared")
-                local rG = n:WaitForChild("Utils")
-                local rG = require(S:WaitForChild("Synchronizer"))
-                local function S(dG)
-                    if not dG then
-                        return false
-                    end
-                    if typeof(dG) == "Instance" then
-                        return dG == C
-                    end
-                    if type(dG) == "string" then
-                        return dG == C.Name
-                    end
-                    return false
-                end
-                local function dG(nG)
-                    local fG, JG = pcall(function()
-                        local aG = getthreadidentity and getthreadidentity() or nil
-                        if setthreadidentity then
-                            setthreadidentity(8)
-                        end
-                        local eG = rG:GetTableFromChannel(nG)
-                        if aG and setthreadidentity then
-                            pcall(setthreadidentity, aG)
-                        end
-                        return eG
-                    end)
-                    if fG and type(JG) == "table" then
-                        return JG
-                    end
-                    return nil
-                end
-                local rG = require(CG:WaitForChild("Animals"))
-                local nG = require(CG:WaitForChild("Mutations"))
-                local fG = require(CG:WaitForChild("Traits"))
-                local CG = {
-                    "",
-                    "K",
-                    "M",
-                    "B",
-                    "T",
-                    "Qa",
-                    "Qi",
-                    "Sx",
-                    "Sp",
-                    "Oc",
-                    "No",
-                    "Dc",
-                    "Ud",
-                    "Dd",
-                    "Td",
-                    "Qad",
-                    "Qid",
-                    "Sxd",
-                    "Spd",
-                    "Ocd",
-                    "Nod",
-                    "Vg",
-                    "Uvg",
-                    "Dvg",
-                    "Tvg",
-                }
-                local function JG(aG, eG)
-                    eG = eG or 1
-                    local xG = math.abs(aG)
-                    local QG = math.max(1, xG)
-                    local xG = math.floor(math.log(QG, 1000))
-                    local QG = CG[xG + 1] or "e+" .. xG
-                    local CG = aG * (10 ^ eG / 1000 ^ xG)
-                    local aG = math.floor(CG) / 10 ^ eG
-                    return (("%." .. eG .. "f"):format(aG)):gsub("%.?0+$", "") .. QG
-                end
-                local function CG(aG, eG, xG)
-                    local QG = rG[aG]
-                    if not QG then
-                        return 0
-                    end
-                    local aG = QG.Generation or QG.Price * 0.1
-                    local QG = 1
-                    if eG and eG ~= "None" then
-                        local VG = nG[eG]
-                        if VG and VG.Modifier then
-                            QG = QG + VG.Modifier
-                        end
-                    end
-                    local nG = false
-                    if type(xG) == "table" then
-                        for eG, eG in ipairs(xG) do
-                            if eG == "Sleepy" then
-                                nG = true
-                            else
-                                local xG = fG[eG]
-                                if xG and xG.MultiplierModifier then
-                                    QG = QG + xG.MultiplierModifier
-                                end
-                            end
-                        end
-                    end
-                    local fG = math.round(aG * QG)
-                    if nG then
-                        fG = math.round(fG * 0.5)
-                    end
-                    return fG
-                end
-                -- Removed from Test 13: base X-ray hooks and transparency tracking
-                local nG = true
-                i.DefaultToPriority = false
-                i.StealPriority = false
-                i.AutoTPPriority = false
-                if i.DefaultToPriority and i.DefaultToHighest then
-                    i.DefaultToHighest = false
-                end
-                if i.DefaultToPriority and i.DefaultToNearest then
-                    i.DefaultToNearest = false
-                end
-                if i.DefaultToHighest and i.DefaultToNearest then
-                    i.DefaultToNearest = false
-                end
-                if not i.DefaultToPriority and not i.DefaultToHighest and not i.DefaultToNearest then
-                    i.DefaultToHighest = true
-                end
-                local fG = false
-                local aG = false
-                local eG = false
-                if i.DefaultToNearest then
-                    fG = true
-                    i.StealNearest = true
-                    i.StealHighest = false
-                    i.StealPriority = false
-                    i.AutoTPPriority = true
-                elseif i.DefaultToHighest then
-                    aG = true
-                    i.StealHighest = true
-                    i.StealNearest = false
-                    i.StealPriority = false
-                    i.AutoTPPriority = false
-                elseif i.DefaultToPriority then
-                    eG = true
-                    i.StealPriority = true
-                    i.StealNearest = false
-                    i.StealHighest = false
-                    i.AutoTPPriority = true
-                else
-                    fG = i.StealNearest
-                    aG = i.StealHighest
-                    eG = i.StealPriority
-                    if i.InstantSteal == nil then
-                        i.InstantSteal = false
-                    end
-                    if i.StealPriority then
-                        i.AutoTPPriority = true
-                    elseif i.StealNearest then
-                        i.AutoTPPriority = true
-                    elseif i.StealHighest then
-                        i.AutoTPPriority = false
-                    end
-                end
-                local xG = i.InstantSteal == true
-                _G.NEAREST_INSTANT_MODE = (i.StealNearest == true and i.InstantSteal == true)
-                _G.K7_INSTANT_DISPLAY = xG
-                local QG = false
-                local VG = false
-                local iG = 1
-                local OG = nil
-                local UG = nil
-                local yG = {}
-                local function KG()
-                    nG = fG == true or aG == true or eG == true
-                end
-                KG()
-                local qG = {}
-                local cG = {}
-                local zG = nil
-                local BG = nil
-                local oG = {}
-                local function YG(TG)
-                    if not TG or not TG.plot then
-                        return false
-                    end
-                    local IG = a:FindFirstChild("Plots")
-                    if not IG then
-                        return false
-                    end
-                    local pG = IG:FindFirstChild(TG.plot)
-                    if not pG then
-                        return false
-                    end
-                    local TG = dG(pG.Name)
-                    if TG then
-                        return S(TG.Owner)
-                    end
-                    return false
-                end
-                local function TG(IG)
-                    if not IG or IG == "None" then
-                        return ""
-                    end
-                    local pG = ""
-                    if IG == "Cursed" then
-                        pG = "<font color='rgb(200,0,0)'>Cur</font><font color='rgb(0,0,0)'>sed</font>"
-                    elseif IG == "Gold" then
-                        pG = "<font color='rgb(255,215,0)'>Gold</font>"
-                    elseif IG == "Diamond" then
-                        pG = "<font color='rgb(0,255,255)'>Diamond</font>"
-                    elseif IG == "YinYang" then
-                        pG = "<font color='rgb(255,255,255)'>Yin</font><font color='rgb(0,0,0)'>Yang</font>"
-                    elseif IG == "Candy" then
-                        pG = "<font color='rgb(255,105,180)'>Candy</font>"
-                    elseif IG == "Divine" then
-                        pG = "<font color='rgb(255,255,255)'>Divine</font>"
-                    elseif IG == "Rainbow" then
-                        local jG = {
-                            "rgb(255,0,0)",
-                            "rgb(255,127,0)",
-                            "rgb(255,255,0)",
-                            "rgb(0,255,0)",
-                            "rgb(0,0,255)",
-                            "rgb(75,0,130)",
-                            "rgb(148,0,211)",
-                        }
-                        for lG = 1, #IG do
-                            pG = pG .. "<font color='" .. jG[(lG - 1) % #jG + 1] .. "'>" .. IG:sub(lG, lG) .. "</font>"
-                        end
-                    elseif IG == "Radioactive" then
-                        pG = "<font color='rgb(132,255,0)'>Radioactive</font>"
-                    elseif IG == "Galaxy" then
-                        pG = "<font color='rgb(170,85,255)'>Galaxy</font>"
-                    else
-                        pG = IG
-                    end
-                    return "<font weight='800'>" .. pG .. " </font>"
-                end
-                local function IG(pG)
-                    if pG == "Gold" then
-                        return Color3.fromRGB(255, 215, 0)
-                    elseif pG == "Diamond" then
-                        return Color3.fromRGB(0, 255, 255)
-                    elseif pG == "Cursed" then
-                        return Color3.fromRGB(200, 0, 0)
-                    elseif pG == "YinYang" then
-                        return Color3.fromRGB(255, 255, 255)
-                    elseif pG == "Candy" then
-                        return Color3.fromRGB(255, 105, 180)
-                    elseif pG == "Divine" then
-                        return Color3.fromRGB(255, 255, 255)
-                    elseif pG == "Rainbow" then
-                        return Color3.fromRGB(148, 0, 211)
-                    elseif pG == "Radioactive" then
-                        return Color3.fromRGB(132, 255, 0)
-                    elseif pG == "Galaxy" then
-                        return Color3.fromRGB(170, 85, 255)
-                    end
-                    return Color3.fromRGB(255, 70, 120)
-                end
-                local function pG(jG)
-                    local lG = jG and jG.petName or "Unknown"
-                    return lG
-                end
-                local function jG(lG)
-                    local WG = lG and lG.mutation
-                    if WG and WG ~= "None" and WG ~= "" then
-                        return TG(WG), true
-                    end
-                    return "", false
-                end
-                local function TG()
-                    local lG = {}
-                    for WG, WG in ipairs(yG) do
-                        if WG.genValue >= 1 and not YG(WG) then
-                            table.insert(
-                                lG,
-                                {
-                                    petName = WG.name,
-                                    mpsText = WG.genText,
-                                    mpsValue = WG.genValue,
-                                    owner = WG.owner,
-                                    plot = WG.plot,
-                                    slot = WG.slot,
-                                    uid = WG.uid,
-                                    mutation = WG.mutation,
-                                    animalData = WG,
-                                }
-                            )
-                        end
-                    end
-                    return lG
-                end
-                local lG = gethui and gethui() or game:GetService("CoreGui")
-                -- Removed from Test 9: hidden target-list window and scrolling rows
-                local tG = d and 0.6 or 1
-                -- K7 replacement bar: mirrors Rose's normal steal pill exactly and
-                -- occupies its live position while nearest/camp owns auto-steal.
-                local oldHud = x:FindFirstChild("bRXgmsaEVfze")
-                if oldHud then oldHud:Destroy() end
-                local hudGui = Instance.new("ScreenGui")
-                hudGui.Name = "bRXgmsaEVfze"
-                hudGui.ResetOnSpawn = false
-                hudGui.IgnoreGuiInset = true
-                hudGui.DisplayOrder = 998
-                hudGui.Parent = x
-                hudGui.Enabled = _G.ROSE_K7_ENABLED == true
-                local hud = Instance.new("Frame", hudGui)
-                hud.Name = "CurrentTargetHUD"
-                local normalRoseBar = _G.ROSE_NORMAL_STEAL_BAR
-                hud.AnchorPoint = normalRoseBar and normalRoseBar.AnchorPoint or Vector2.new(0, 0)
-                hud.Size = normalRoseBar and normalRoseBar.Size or UDim2.fromOffset(320, 50)
-                hud.Position = normalRoseBar and normalRoseBar.Position or UDim2.new(0, 16, 0, 560)
-                hud.BackgroundColor3 = Theme.Background
-                hud.BackgroundTransparency = 0.02
-                hud.BorderSizePixel = 0
-                hud.ClipsDescendants = true
-                Instance.new("UICorner", hud).CornerRadius = UDim.new(1, 0)
-                local hudStroke = Instance.new("UIStroke", hud)
-                hudStroke.Color = Theme.Accent1
-                hudStroke.Thickness = 2
-                hudStroke.Transparency = 0.1
-                local MG = Instance.new("TextLabel", hud)
-                MG.Size = UDim2.new(1, -96, 0, 16)
-                MG.Position = UDim2.new(0, 12, 0, 5)
-                MG.BackgroundTransparency = 1
-                MG.Font = Enum.Font.GothamBold
-                MG.TextSize = 14
-                MG.TextColor3 = Color3.fromRGB(255, 255, 255)
-                MG.TextXAlignment = Enum.TextXAlignment.Left
-                MG.TextTruncate = Enum.TextTruncate.AtEnd
-                MG.Text = "Searching..."
-                local k7GenLbl = Instance.new("TextLabel", hud)
-                k7GenLbl.Size = UDim2.new(0, 82, 0, 16)
-                k7GenLbl.Position = UDim2.new(1, -90, 0, 5)
-                k7GenLbl.BackgroundTransparency = 1
-                k7GenLbl.Font = Enum.Font.GothamBold
-                k7GenLbl.TextSize = 13
-                k7GenLbl.TextColor3 = Color3.fromRGB(120, 235, 150)
-                k7GenLbl.TextXAlignment = Enum.TextXAlignment.Right
-                k7GenLbl.Text = ""
-                local FG = Instance.new("TextLabel", hud)
-                FG.Size = UDim2.new(0, 150, 0, 13)
-                FG.Position = UDim2.new(0, 12, 0, 24)
-                FG.BackgroundTransparency = 1
-                FG.Font = Enum.Font.GothamBlack
-                FG.TextSize = 12
-                FG.TextColor3 = Theme.Accent1
-                FG.TextXAlignment = Enum.TextXAlignment.Left
-                FG.Text = "INSTANT  0%"
-                local k7SecLbl = Instance.new("TextLabel", hud)
-                k7SecLbl.Size = UDim2.new(0, 110, 0, 13)
-                k7SecLbl.Position = UDim2.new(1, -122, 0, 24)
-                k7SecLbl.BackgroundTransparency = 1
-                k7SecLbl.Font = Enum.Font.GothamMedium
-                k7SecLbl.TextSize = 12
-                k7SecLbl.TextColor3 = Color3.fromRGB(210, 210, 215)
-                k7SecLbl.TextXAlignment = Enum.TextXAlignment.Right
-                k7SecLbl.Text = "NEAREST"
-                local track = Instance.new("Frame", hud)
-                track.Size = UDim2.new(1, -32, 0, 3)
-                track.Position = UDim2.new(0, 16, 1, -10)
-                track.BackgroundColor3 = Color3.fromRGB(30, 14, 50)
-                track.BorderSizePixel = 0
-                track.ClipsDescendants = true
-                Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-                local bG = Instance.new("Frame", track)
-                bG.Size = UDim2.new(0, 0, 1, 0)
-                bG.BackgroundColor3 = Theme.Accent1
-                bG.BorderSizePixel = 0
-                Instance.new("UICorner", bG).CornerRadius = UDim.new(1, 0)
-                local wG = bG
-                local roseBarWasVisible = nil
-                _G.ROSE_K7_RESTORE_NORMAL_BAR = function()
-                    hudGui.Enabled = false
-                    if normalRoseBar and normalRoseBar.Parent and roseBarWasVisible ~= nil then
-                        normalRoseBar.Visible = roseBarWasVisible
-                    end
-                    roseBarWasVisible = nil
-                end
-                task.spawn(function()
-                    while bG.Parent do
-                        local pct = math.clamp(math.floor(bG.Size.X.Scale * 100 + 0.5), 0, 100)
-                        FG.Text = "INSTANT  " .. tostring(pct) .. "%"
-                        task.wait(0.05)
-                    end
-                end)
-                -- Removed from Test 9: hidden target-control panel, buttons, overlays, and redraw loop
-                local function sG() end
-                P.UpdateAutoStealUI = function() end
-                _G.K7SetStealNearest = function(k7v)
-                    fG = k7v == true
-                    if fG then
-                        aG = false
-                        eG = false
-                        UG = nil
-                    end
-                    i.StealNearest = fG
-                    i.StealHighest = false
-                    i.StealPriority = false
-                    _G.NEAREST_INSTANT_MODE = (fG and xG)
-                    U()
-                end
-                _G.K7SetInstantSteal = function(k7v)
-                    xG = k7v == true
-                    QG = false
-                    VG = false
-                    i.InstantSteal = xG
-                    _G.K7_INSTANT_DISPLAY = xG
-                    _G.NEAREST_INSTANT_MODE = (fG and xG)
-                    U()
-                end
-                task.spawn(function()
-                    while true do
-                        task.wait(1.5)
-                        if not xG then
-                            continue
-                        end
-                        xG = false
-                        QG = false
-                        VG = false
-                        i.InstantSteal = false
-                        _G.NEAREST_INSTANT_MODE = false
-                        task.wait(0.05)
-                        xG = true
-                        i.InstantSteal = true
-                        _G.NEAREST_INSTANT_MODE = (fG and true)
-                    end
-                end)
-                local function b(KG)
-                    if not KG then
-                        return nil
-                    end
-                    local oG = cG[KG.uid]
-                    if oG and oG.Parent then
-                        return oG
-                    end
-                    local oG = a.Plots:FindFirstChild(KG.plot)
-                    if not oG then
-                        return nil
-                    end
-                    local IG = oG:FindFirstChild("AnimalPodiums")
-                    if not IG then
-                        return nil
-                    end
-                    local pG = dG(oG.Name)
-                    local jG = pG and pG.AnimalList
-                    if not jG then
-                        local pG = IG:FindFirstChild(KG.slot)
-                        if pG then
-                            local lG = pG:FindFirstChild("Base")
-                            local pG = lG and lG:FindFirstChild("Spawn")
-                            if pG then
-                                local lG = pG:FindFirstChild("PromptAttachment")
-                                if lG then
-                                    for pG, pG in ipairs(lG:GetChildren()) do
-                                        if pG:IsA("ProximityPrompt") then
-                                            cG[KG.uid] = pG
-                                            return pG
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        return nil
-                    end
-                    if not jG then
-                        return nil
-                    end
-                    local pG = KG.name and KG.name:lower() or ""
-                    local lG = KG.slot
-                    local WG = nil
-                    for XG, tG in pairs(jG) do
-                        if type(tG) == "table" and tostring(XG) == lG then
-                            local jG, lG = tG.Index, rG[tG.Index]
-                            if lG and (lG.DisplayName or jG):lower() == pG then
-                                WG = IG:FindFirstChild(tostring(XG))
-                                break
-                            end
-                        end
-                    end
-                    if not WG then
-                        WG = IG:FindFirstChild(KG.slot)
-                    end
-                    if WG then
-                        local IG = WG:FindFirstChild("Base")
-                        local jG = IG and IG:FindFirstChild("Spawn")
-                        if jG then
-                            local IG = jG:FindFirstChild("PromptAttachment")
-                            if IG then
-                                for lG, lG in ipairs(IG:GetChildren()) do
-                                    if lG:IsA("ProximityPrompt") and lG.Enabled and lG.ActionText == "Steal" then
-                                        cG[KG.uid] = lG
-                                        return lG
-                                    end
-                                end
-                            end
-                            local IG = jG.Position
-                            local jG, lG = IG.X, IG.Z
-                            local WG = nil
-                            local XG = math.huge
-                            for tG, tG in pairs(oG:GetDescendants()) do
-                                if tG:IsA("ProximityPrompt") and tG.Enabled and tG.ActionText == "Steal" then
-                                    local oG = tG.Parent
-                                    local GG = nil
-                                    if oG and oG:IsA("BasePart") then
-                                        GG = oG.Position
-                                    elseif oG and oG:IsA("Attachment") and oG.Parent and oG.Parent:IsA("BasePart") then
-                                        GG = oG.Parent.Position
-                                    end
-                                    if GG then
-                                        local oG = IG.Y
-                                        if pG:find("la secret combinasion") then
-                                            oG = IG.Y - 5
-                                        end
-                                        local IG = math.sqrt((GG.X - jG) ^ 2 + (GG.Z - lG) ^ 2)
-                                        if IG < 5 and GG.Y > oG then
-                                            local IG = GG.Y - oG
-                                            if IG < XG then
-                                                XG = IG
-                                                WG = tG
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                            if WG then
-                                cG[KG.uid] = WG
-                                return WG
-                            end
-                        end
-                    end
-                    return nil
-                end
-                local function KG(oG)
-                    if qG[oG] then
-                        return
-                    end
-                    local IG = { holdCallbacks = {}, triggerCallbacks = {}, holdEndCallbacks = {}, ready = true }
-                    local pG, jG = pcall(getconnections, oG.PromptButtonHoldBegan)
-                    if pG and type(jG) == "table" then
-                        for pG, pG in ipairs(jG) do
-                            if type(pG.Function) == "function" then
-                                table.insert(IG.holdCallbacks, pG.Function)
-                            end
-                        end
-                    end
-                    local pG, jG = pcall(getconnections, oG.Triggered)
-                    if pG and type(jG) == "table" then
-                        for pG, pG in ipairs(jG) do
-                            if type(pG.Function) == "function" then
-                                table.insert(IG.triggerCallbacks, pG.Function)
-                            end
-                        end
-                    end
-                    local pG, jG = pcall(getconnections, oG.PromptButtonHoldEnded)
-                    if pG and type(jG) == "table" then
-                        for pG, pG in ipairs(jG) do
-                            if type(pG.Function) == "function" then
-                                table.insert(IG.holdEndCallbacks, pG.Function)
-                            end
-                        end
-                    end
-                    if #IG.holdCallbacks > 0 or #IG.triggerCallbacks > 0 or #IG.holdEndCallbacks > 0 then
-                        qG[oG] = IG
-                    end
-                end
-                local function oG(IG)
-                    for pG, pG in ipairs(IG) do
-                        task.spawn(pG)
-                    end
-                end
-                local function IG(pG)
-                    local jG = dG(pG)
-                    if jG then
-                        return S(jG.Owner)
-                    end
-                    return false
-                end
-                local function pG()
-                    local jG = C.Character and C.Character:FindFirstChild("HumanoidRootPart")
-                    if not jG then
-                        return nil, math.huge, nil
-                    end
-                    local lG = workspace:FindFirstChild("Plots")
-                    if not lG then
-                        return nil, math.huge, nil
-                    end
-                    local WG, XG, tG = nil, math.huge, nil
-                    for GG, GG in ipairs(lG:GetChildren()) do
-                        if IG(GG.Name) then
-                            continue
-                        end
-                        local IG = math.huge
-                        pcall(function()
-                            IG = (GG:GetPivot().Position - jG.Position).Magnitude
-                        end)
-                        if IG > 100 then
-                            continue
-                        end
-                        local IG = GG:FindFirstChild("AnimalPodiums")
-                        if not IG then
-                            continue
-                        end
-                        for lG, lG in ipairs(IG:GetChildren()) do
-                            local IG = lG:FindFirstChild("Base")
-                            local GG = IG and IG:FindFirstChild("Spawn")
-                            if not GG then
-                                continue
-                            end
-                            local IG = (GG.Position - jG.Position).Magnitude
-                            if IG > 60 or IG >= XG then
-                                continue
-                            end
-                            local jG = GG:FindFirstChild("PromptAttachment")
-                            if not jG then
-                                continue
-                            end
-                            local GG = jG:FindFirstChildOfClass("ProximityPrompt")
-                            if GG and GG.Parent and GG.Enabled then
-                                WG = GG
-                                XG = IG
-                                tG = lG.Name
-                            end
-                        end
-                    end
-                    return WG, XG, tG
-                end
-                local function IG(jG, lG)
-                    if _G.ROSE_K7_ENABLED ~= true then return false end
-                    local WG = qG[jG]
-                    if not WG or not WG.ready then
-                        return false
-                    end
-                    WG.ready = false
-                    task.spawn(function()
-                        if _G.ROSE_K7_ENABLED ~= true then WG.ready = true return end
-                        if BG ~= lG then
-                            if zG then
-                                zG:Cancel()
-                            end
-                            wG.Size = UDim2.new(0, 0, 1, 0)
-                            BG = lG
-                        end
-                        if _G.ROSE_K7_ENABLED == true and #WG.holdCallbacks > 0 then
-                            oG(WG.holdCallbacks)
-                        end
-                        wG.Size = UDim2.new(0, 0, 1, 0)
-                        wG.BackgroundTransparency = 0
-                        zG = f:Create(wG, TweenInfo.new(1.2, Enum.EasingStyle.Linear), { Size = UDim2.new(1, 0, 1, 0) })
-                        zG:Play()
-                        zG.Completed:Wait()
-                        if _G.ROSE_K7_ENABLED == true and BG == lG and #WG.triggerCallbacks > 0 then
-                            oG(WG.triggerCallbacks)
-                        end
-                        WG.ready = true
-                    end)
-                    return true
-                end
-                local function oG(jG, lG)
-                    if _G.ROSE_K7_ENABLED ~= true then return false end
-                    if not jG or not jG.Parent then
-                        return false
-                    end
-                    KG(jG)
-                    if not qG[jG] then
-                        return false
-                    end
-                    if BG ~= lG then
-                        if zG then
-                            zG:Cancel()
-                            zG = nil
-                        end
-                        wG.Size = UDim2.new(0, 0, 1, 0)
-                    end
-                    return IG(jG, lG)
-                end
-                local function qG()
-                    for BG, BG in pairs(cG) do
-                        if BG and BG.Parent then
-                            KG(BG)
-                        end
-                    end
-                end
-                task.spawn(function()
-                    while task.wait(2) do
-                        if nG then
-                            qG()
-                        end
-                    end
-                end)
-                local KG = {}
-                local function qG(BG)
-                    if not BG then
-                        return ""
-                    end
-                    local IG = ""
-                    for jG, lG in pairs(BG) do
-                        if type(lG) == "table" then
-                            IG = IG .. tostring(jG) .. tostring(lG.Index) .. tostring(lG.Mutation)
-                        end
-                    end
-                    return IG
-                end
-                local function BG(IG)
-                    local jG = false
-                    pcall(function()
-                        local lG = dG(IG.Name)
-                        if not lG then
-                            return
-                        end
-                        local WG = lG.AnimalList
-                        local XG = lG.Owner
-                        if
-                            not XG
-                            or S(XG)
-                            or typeof(XG) == "Instance" and not r:FindFirstChild(XG.Name)
-                            or type(XG) == "string" and not r:FindFirstChild(XG)
-                        then
-                            KG[IG.Name] = nil
-                            for S = #yG, 1, -1.0 do
-                                if yG[S].plot == IG.Name then
-                                    table.remove(yG, S)
-                                    jG = true
-                                end
-                            end
-                            return
-                        end
-                        if not WG then
-                            KG[IG.Name] = nil
-                            for S = #yG, 1, -1.0 do
-                                if yG[S].plot == IG.Name then
-                                    table.remove(yG, S)
-                                    jG = true
-                                end
-                            end
-                            return
-                        end
-                        local S = typeof(XG) == "Instance" and XG.Name or tostring(XG)
-                        local lG = qG(WG, S)
-                        if KG[IG.Name] == lG then
-                            return
-                        end
-                        for qG = #yG, 1, -1.0 do
-                            if yG[qG].plot == IG.Name then
-                                table.remove(yG, qG)
-                            end
-                        end
-                        for qG, XG in pairs(WG) do
-                            if type(XG) == "table" then
-                                local WG, tG = XG.Index, rG[XG.Index]
-                                if tG then
-                                    local rG = XG.Mutation or "None"
-                                    if rG == "Yin Yang" then
-                                        rG = "YinYang"
-                                    end
-                                    local GG = XG.Traits and #XG.Traits > 0 and table.concat(XG.Traits, ", ") or "None"
-                                    local vG = CG(WG, XG.Mutation, XG.Traits)
-                                    local CG = "$" .. JG(vG) .. "/s"
-                                    table.insert(
-                                        yG,
-                                        {
-                                            name = tG.DisplayName or WG,
-                                            genText = CG,
-                                            genValue = vG,
-                                            mutation = rG,
-                                            traits = GG,
-                                            owner = S,
-                                            plot = IG.Name,
-                                            slot = tostring(qG),
-                                            uid = IG.Name .. "_" .. tostring(qG),
-                                        }
-                                    )
-                                end
-                            end
-                        end
-                        KG[IG.Name] = lG
-                        jG = true
-                    end)
-                    if jG then
-                        table.sort(yG, function(S, CG)
-                            return S.genValue > CG.genValue
-                        end)
-                        P.AllAnimalsCache = yG
-                        P.ListNeedsRedraw = true
-                        if P.UpdateAutoStealUI then
-                            P.UpdateAutoStealUI()
-                        end
-                    end
-                end
-                local function S(CG)
-                    local rG, JG = nil, 0
-                    while not rG and JG < 40 do
-                        rG = dG(CG.Name)
-                        if not rG then
-                            JG = JG + 1
-                            task.wait(0.07)
-                        end
-                    end
-                    if not rG then
-                        return
-                    end
-                    BG(CG)
-                    local function rG(JG)
-                        if not JG then
-                            return
-                        end
-                        JG.ChildAdded:Connect(function()
-                            task.wait(0.15)
-                            BG(CG)
-                        end)
-                        JG.ChildRemoved:Connect(function()
-                            for JG = #yG, 1, -1.0 do
-                                if yG[JG].plot == CG.Name then
-                                    table.remove(yG, JG)
-                                end
-                            end
-                            KG[CG.Name] = nil
-                            _getPetsCache = nil
-                            for JG in pairs(cG) do
-                                if JG:sub(1, #CG.Name) == CG.Name then
-                                    cG[JG] = nil
-                                end
-                            end
-                            P.ListNeedsRedraw = true
-                            if P.UpdateAutoStealUI then
-                                P.UpdateAutoStealUI()
-                            end
-                            task.wait(0.15)
-                            BG(CG)
-                        end)
-                    end
-                    local JG = CG:FindFirstChild("AnimalPodiums")
-                    rG(JG)
-                    CG.ChildAdded:Connect(function(JG)
-                        if JG.Name == "AnimalPodiums" then
-                            rG(JG)
-                            BG(CG)
-                        end
-                    end)
-                    CG.ChildRemoved:Connect(function(rG)
-                        if rG.Name == "AnimalPodiums" then
-                            for rG = #yG, 1, -1.0 do
-                                if yG[rG].plot == CG.Name then
-                                    table.remove(yG, rG)
-                                end
-                            end
-                            KG[CG.Name] = nil
-                            _getPetsCache = nil
-                            P.ListNeedsRedraw = true
-                            if P.UpdateAutoStealUI then
-                                P.UpdateAutoStealUI()
-                            end
-                        end
-                    end)
-                    task.spawn(function()
-                        while CG.Parent do
-                            task.wait(10)
-                            BG(CG)
-                        end
-                    end)
-                end
-                local CG = a:WaitForChild("Plots", 8)
-                if CG then
-                    for rG, rG in ipairs(CG:GetChildren()) do
-                        S(rG)
-                    end
-                    CG.ChildAdded:Connect(function(rG)
-                        task.wait(0.5)
-                        S(rG)
-                    end)
-                    CG.ChildRemoved:Connect(function(S)
-                        KG[S.Name] = nil
-                        _getPetsCache = nil
-                        for CG = #yG, 1, -1.0 do
-                            if yG[CG].plot == S.Name then
-                                table.remove(yG, CG)
-                            end
-                        end
-                        for CG in pairs(cG) do
-                            if CG:sub(1, #S.Name) == S.Name then
-                                cG[CG] = nil
-                            end
-                        end
-                        P.ListNeedsRedraw = true
-                        if P.UpdateAutoStealUI then
-                            P.UpdateAutoStealUI()
-                        end
-                    end)
-                end
-                local function S(CG)
-                    if #CG == 0 then
-                        return
-                    end
-                    if UG then
-                        for rG, dG in ipairs(CG) do
-                            if dG.uid == UG then
-                                if iG ~= rG then
-                                    iG = rG
-                                    OG = dG.uid
-                                end
-                                MG.Text = dG.petName or "Unknown"
-                                k7GenLbl.Text = dG.mpsText or ""
-                                return
-                            end
-                        end
-                        UG = nil
-                    end
-                    if eG then
-                        for rG, rG in ipairs(X) do
-                            local dG = rG:lower()
-                            for rG, JG in ipairs(CG) do
-                                if JG.petName and JG.petName:lower() == dG then
-                                    if iG ~= rG then
-                                        iG = rG
-                                        OG = JG.uid
-                                    end
-                                    return
-                                end
-                            end
-                        end
-                        if iG ~= 1 then
-                            iG = 1
-                            OG = CG[1] and CG[1].uid
-                        end
-                    elseif fG then
-                        local rG = C.Character
-                        local dG = rG and rG:FindFirstChild("HumanoidRootPart")
-                        if dG then
-                            local rG, JG = 1, math.huge
-                            for eG, KG in ipairs(CG) do
-                                local qG = KG.animalData and M(KG.animalData)
-                                if qG and qG:IsA("BasePart") then
-                                    local KG = (dG.Position - qG.Position).Magnitude
-                                    if KG < JG then
-                                        JG = KG
-                                        rG = eG
-                                    end
-                                end
-                            end
-                            if CG[rG] then
-                                local dG = CG[rG]
-                                MG.Text = dG.petName or "Unknown"
-                                k7GenLbl.Text = dG.mpsText or ""
-                            end
-                            if not xG and iG ~= rG then
-                                iG = rG
-                                OG = CG[rG] and CG[rG].uid
-                            end
-                        end
-                    elseif aG then
-                        if iG ~= 1 then
-                            iG = 1
-                            OG = CG[1] and CG[1].uid
-                        end
-                    end
-                end
-                R.Heartbeat:Connect(function()
-                    if not nG then
-                        return
-                    end
-                    S(TG())
-                end)
-                task.spawn(function()
-                    while true do
-                        task.wait(0.5)
-                        if nG then
-                            local S = TG()
-                            if #S > 0 then
-                                P.ListNeedsRedraw = false
-                                sG(nG, S)
-                            end
-                        end
-                    end
-                end)
-                R.Heartbeat:Connect(function()
-                    local k7Visible = _G.ROSE_K7_ENABLED == true
-                    hudGui.Enabled = k7Visible
-                    if normalRoseBar and normalRoseBar.Parent then
-                        -- Follow the normal bar's saved/dragged layout exactly.
-                        hud.AnchorPoint = normalRoseBar.AnchorPoint
-                        hud.Position = normalRoseBar.Position
-                        hud.Size = normalRoseBar.Size
-                        if k7Visible then
-                            if roseBarWasVisible == nil then
-                                roseBarWasVisible = normalRoseBar.Visible
-                            end
-                            normalRoseBar.Visible = false
-                        elseif roseBarWasVisible ~= nil then
-                            normalRoseBar.Visible = roseBarWasVisible
-                            roseBarWasVisible = nil
-                        end
-                    end
-                    k7SecLbl.Text = (_G.RoseCamp and _G.RoseCamp.active == true) and "BASE CAMP" or "NEAREST"
-                    if not k7Visible then
-                        if zG then zG:Cancel(); zG = nil end
-                        wG.Size = UDim2.new(0, 0, 1, 0)
-                        return
-                    end
-                    if not nG then
-                        return
-                    end
-                    if xG then
-                        if zG then
-                            zG:Cancel()
-                            zG = nil
-                        end
-                        wG.Size = UDim2.new(1, 0, 1, 0)
-                        wG.BackgroundTransparency = 0
-                        if not VG then
-                            VG = true
-                            task.spawn(function()
-                                if not game:IsLoaded() then
-                                    game.Loaded:Wait()
-                                end
-                                task.wait(0.5)
-                                QG = true
-                            end)
-                        end
-                        if QG then
-                            if fG and not UG then
-                                local S, CG, rG = pG()
-                                if S and CG <= 60 then
-                                end
-                            else
-                                local S = TG()
-                                if #S > 0 then
-                                    if iG > #S then
-                                        iG = #S
-                                    end
-                                    if iG < 1 then
-                                        iG = 1
-                                    end
-                                    local CG = S[iG]
-                                    if CG and not YG(CG.animalData) then
-                                        local S = cG[CG.uid]
-                                        if not S or not S.Parent then
-                                            S = b(CG.animalData)
-                                        end
-                                        if S then
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        return
-                    end
-                    local S = TG()
-                    if #S == 0 then
-                        return
-                    end
-                    if iG > #S then
-                        iG = #S
-                    end
-                    if iG < 1 then
-                        iG = 1
-                    end
-                    local CG = S[iG]
-                    if not CG or YG(CG.animalData) then
-                        return
-                    end
-                    local S = cG[CG.uid]
-                    if not S or not S.Parent then
-                        S = b(CG.animalData)
-                    end
-                    if S then
-                        oG(S, CG.uid)
-                    end
-                end)
-                task.spawn(function()
-                    while task.wait(0.5) do
-                        sG(nG, TG())
-                    end
-                end)
-                task.spawn(function()
-                    task.wait(1)
-                    P.ListNeedsRedraw = true
-                    sG(nG, TG())
-                end)
-                task.spawn(function()
-                    while true do
-                        P.AllAnimalsCache = yG
-                        task.wait(0.5)
-                    end
-                end)
-                -- Removed from Test 13: target tracer beam and heartbeat renderer
-            end)
-            -- Removed from Test 11: stale float, reset, kick watcher, and removed-feature keybind handlers
-            -- Removed from Test 7: hidden settings plus post-UI feature tail (auto-TP, speed, sentry, mine ESP)
-            -- Removed from Test 2: FPS tool-mesh tracker and error-GUI cleaner
-            -- Removed from Test 1: job joiner UI and teleport loop
-            k7Started = true
-            k7Starting = false
-        end)
-    end
-
-    _G.ROSE_K7_SHUTDOWN = function()
-        controllerAlive = false
-        _G.ROSE_K7_ENABLED = false
-        if type(_G.ROSE_K7_RESTORE_NORMAL_BAR) == "function" then
-            pcall(_G.ROSE_K7_RESTORE_NORMAL_BAR)
-        end
-        _G.ROSE_K7_OWNS_STEAL = true
-        if capturedSetNearest then pcall(capturedSetNearest, false) end
-        if capturedSetInstant then pcall(capturedSetInstant, false) end
-        _G.ROSE_K7_OWNS_STEAL = false
-    end
-
-    task.spawn(function()
-        local applied = nil
-        local wasReady = false
-        while controllerAlive do
-            local wanted = roseK7Wanted()
-            if wanted and not k7Started then startRoseK7() end
-            local ready = k7Started
-                and type(_G.K7SetStealNearest) == "function"
-                and type(_G.K7SetInstantSteal) == "function"
-            if ready and not capturedSetNearest then
-                capturedSetNearest = _G.K7SetStealNearest
-                capturedSetInstant = _G.K7SetInstantSteal
-            end
-
-            -- The prompt watcher obeys this immediately, even while K7 is starting.
-            _G.ROSE_K7_ENABLED = wanted
-
-            if ready and (applied ~= wanted or not wasReady) then
-                -- Keep Rose paused for the entire transition so the engines never overlap.
-                _G.ROSE_K7_OWNS_STEAL = true
-                if wanted then
-                    -- Instant first: K7 never passes through its normal-steal mode.
-                    pcall(capturedSetInstant, true)
-                    pcall(capturedSetNearest, true)
-                else
-                    -- Targeting first: K7 is stopped before Instant is lowered.
-                    pcall(capturedSetNearest, false)
-                    pcall(capturedSetInstant, false)
-                    _G.ROSE_K7_OWNS_STEAL = false
-                end
-                applied = wanted
-            elseif not ready then
-                -- During startup, pause Rose only if K7 was requested.
-                _G.ROSE_K7_OWNS_STEAL = wanted and (k7Starting or k7Started)
-            elseif wanted then
-                _G.ROSE_K7_OWNS_STEAL = true
-            else
-                _G.ROSE_K7_OWNS_STEAL = false
-            end
-
-            wasReady = ready
-            task.wait(0.1)
-        end
-    end)
 end
