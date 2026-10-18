@@ -15080,16 +15080,7 @@ return "TP Spots" end, {f1row, f2row, f2bRow}, true)
         elseif _G.JAF_OpenPriorityList then _G.JAF_OpenPriorityList() end
     end)
     end)
-    _addTab("uih", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local tS = tScrolls2["uih"]
-        local cs = C()
-        makeSec(tS, "MAIN COLOR", 100)
-        local orangeRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,42), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 101)
-        JUI.corner(orangeRow, 7)
-        local orangeDot = JUI.new("Frame", orangeRow, "Size", UDim2.new(0,14,0,14), "Position", UDim2.new(0,12,0.5,-7), "BackgroundColor3", Color3.fromRGB(255,145,35), "BorderSizePixel", 0)
-        JUI.round(orangeDot)
-        JUI.new("TextLabel", orangeRow, "Size", UDim2.new(1,-42,1,0), "Position", UDim2.new(0,36,0,0), "BackgroundTransparency", 1, "Text", "Orange", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-    end)
+    -- UI theme page removed; the interface uses the fixed orange accent.
     searchResults = JUI.new("ScrollingFrame", cArea, "Name", "FeatureSearchResults", "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "BorderSizePixel", 0, "ScrollBarThickness", 0, "ScrollBarImageColor3", Theme.Accent1, "CanvasSize", UDim2.new(0,0,0,0), "AutomaticCanvasSize", Enum.AutomaticSize.Y, "Visible", false)
     do
         local sll = Instance.new("UIListLayout", searchResults)
