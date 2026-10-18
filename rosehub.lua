@@ -78,8 +78,8 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 do
     local _efOn = true
     pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if type(isfile) == "function" and type(readfile) == "function" and isfile("rosehub.json") then
-            local d = game:GetService("HttpService"):JSONDecode(readfile("rosehub.json"))
+        if type(isfile) == "function" and type(readfile) == "function" and isfile("gerathub.json") then
+            local d = game:GetService("HttpService"):JSONDecode(readfile("gerathub.json"))
             if type(d) == "table" and d.FpsOptimizer == false then _efOn = false end
         end end)
     if _efOn then
@@ -782,7 +782,7 @@ return Enum.KeyCode[cleaned] end)
     if ok and kc then return kc end
     return fallback
 end
-local FileName = "rosehub.json"
+local FileName = "gerathub.json"
 do
     if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
         if not isfile(FileName) then
@@ -898,8 +898,8 @@ local DefaultConfig = {
     AutoResetOnBalloon = false,
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
-    CurrentTheme = "white",
-    CustomThemeHex = "FFC800",
+    CurrentTheme = "dawg",
+    CustomThemeHex = "FF912D",
     ThemeImageUrl = "",
     ShowMiniActions = true,
     MiniUIPos = {X = 0.01, Y = 0.35},
@@ -1145,135 +1145,32 @@ local function _jafParsePSInput(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(f
     if input == "" then return nil end
     local placeId = tonumber(input:match("/games/(%d+)"))
     local direct = input:match("[?&]privateServerLinkCode=([%w%-_]+)") or input:match("[?&]linkCode=([%w%-_]+)")
-    if direct then return direct, placeId, false, nil end
-    -- share link: roblox.com/share?code=...&type=Server
-    local shareCode = input:match("[?&]code=([%w%-_]+)") or input:match("roblox%.com/share[^%w]*code=([%w%-_]+)")
-    if not shareCode and input:match("^[%w%-_]+$") then
-        if (#input == 32) and (input:match("^[0-9a-fA-F]+$") ~= nil) then
-            shareCode = input
-        else
-            return input, placeId, false, nil
-        end
+    if direct then return direct, placeId, false end
+    if input:match("[?&]code=([%w%-_]+)") then return nil, placeId, true end
+    if input:match("^[%w%-_]+$") then
+        local looksShare = (#input == 32) and (input:match("^[0-9a-f]+$") ~= nil)
+        if looksShare then return nil, placeId, true end
+        return input, placeId, false
     end
-    if shareCode then return nil, placeId, true, shareCode end
     return nil
 end
 _G.JAF_ParsePSInput = _jafParsePSInput
--- Resolve share?code=... to privateServerLinkCode via Roblox API
-_G.JAF_ResolveShareCode = function(shareCode) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    if type(shareCode) ~= "string" or shareCode == "" then return nil, nil, "empty share code" end
-    shareCode = shareCode:gsub("%s+", "")
-    if _G.JAF_ResolvedPS and _G.JAF_ResolvedPS.share == shareCode and _G.JAF_ResolvedPS.linkCode then
-        return _G.JAF_ResolvedPS.linkCode, _G.JAF_ResolvedPS.placeId, nil
-    end
-    local body = HttpService:JSONEncode({ linkId = shareCode, linkType = "Server" })
-    local url = "https://apis.roblox.com/share-links/v1/resolve"
-    local resp, err
-    local req = (syn and syn.request) or (http and http.request) or http_request or request
-    if type(req) == "function" then
-        local ok, r = pcall(req, {
-            Url = url,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json", ["Accept"] = "application/json" },
-            Body = body,
-        })
-        if ok and type(r) == "table" then
-            resp = r.Body or r.body
-        else
-            err = tostring(r)
-        end
-    end
-    if not resp and type(game.HttpPost) == "function" then
-        local ok, r = pcall(game.HttpPost, game, url, body, true, "application/json")
-        if ok then resp = r else err = tostring(r) end
-    end
-    if not resp and type(HttpService.PostAsync) == "function" then
-        local ok, r = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-            return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson, false)
-        end)
-        if ok then resp = r else err = tostring(r) end
-    end
-    if type(resp) ~= "string" or resp == "" then
-        return nil, nil, err or "share resolve failed (no http)"
-    end
-    local okj, data = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return HttpService:JSONDecode(resp) end)
-    if not okj or type(data) ~= "table" then
-        return nil, nil, "bad resolve response"
-    end
-    -- typical fields: privateServerLinkCode / linkCode, placeId / placeIds
-    local link = data.privateServerLinkCode or data.linkCode
-        or (data.data and (data.data.privateServerLinkCode or data.data.linkCode))
-    local pid = data.placeId or data.placeID
-        or (data.data and (data.data.placeId or data.data.placeID))
-    if type(data.placeIds) == "table" and data.placeIds[1] then pid = pid or data.placeIds[1] end
-    if type(link) ~= "string" or link == "" then
-        -- sometimes nested under status / linkStatus
-        local st = data.status or data.linkStatus or (data.data and data.data.status)
-        return nil, nil, "no linkCode in resolve (" .. tostring(st or "unknown") .. ")"
-    end
-    pid = tonumber(pid)
-    _G.JAF_ResolvedPS = { share = shareCode, linkCode = link, placeId = pid }
-    return link, pid, nil
-end
-_G.JAF_GetPSLinkCode = function(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    input = input or Config.PrivateServerCode
-    local linkCode, placeId, isShare, shareCode = _jafParsePSInput(input)
-    if linkCode then return linkCode, placeId, nil end
-    if isShare and shareCode then
-        local lc, pid, e = _G.JAF_ResolveShareCode(shareCode)
-        return lc, pid or placeId, e
-    end
-    return nil, placeId, "no valid code"
-end
 _G.JAF_TeleportToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local linkCode, placeId, resolveErr = _G.JAF_GetPSLinkCode(Config.PrivateServerCode)
-    if not linkCode or linkCode == "" then
-        _G.JAF_PSLastErr = resolveErr or "no-code"
-        return false, resolveErr or "no valid private-server link code saved"
-    end
+    local linkCode, placeId, shareWarn = _jafParsePSInput(Config.PrivateServerCode)
+    if shareWarn then return false, "that's a SHARE code, not a linkCode" end
+    if not linkCode then return false, "no valid private-server link code saved" end
     placeId = placeId or game.PlaceId
-    local lastErr = nil
-    -- 1) VIP linkCode via ContactListIrisInviteTeleport (most reliable for privateServerLinkCode)
-    local ok1 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        local rrs = game:GetService("RobloxReplicatedStorage")
-        local ev = rrs:FindFirstChild("ContactListIrisInviteTeleport")
-            or rrs:WaitForChild("ContactListIrisInviteTeleport", 2)
-        if not ev then error("no ContactListIrisInviteTeleport") end
-        ev:FireServer(placeId, "", linkCode)
+    local ok = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        game:GetService("ExperienceService"):LaunchExperience({ placeId = placeId, linkCode = linkCode })
     end)
-    if ok1 then _G.JAF_PSLastErr = nil; return true end
-    lastErr = "iris-failed"
-    -- 2) TeleportToPrivateServer (works for reserved-server access codes)
-    local ok2, err2 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    if ok then return true end
+    local ok2, err = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         TeleportService:TeleportToPrivateServer(placeId, linkCode, { LocalPlayer })
     end)
-    if ok2 then _G.JAF_PSLastErr = nil; return true end
-    lastErr = tostring(err2 or "TeleportToPrivateServer failed")
-    -- 3) ExperienceService LaunchExperience (if present)
-    local ok3 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        local es = game:GetService("ExperienceService")
-        if not es or not es.LaunchExperience then error("no ExperienceService") end
-        es:LaunchExperience({ placeId = placeId, linkCode = linkCode })
-    end)
-    if ok3 then _G.JAF_PSLastErr = nil; return true end
-    -- 4) Teleport with teleport data fallback
-    local ok4, err4 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        TeleportService:Teleport(placeId, LocalPlayer, nil, { reservedServerAccessCode = linkCode, linkCode = linkCode })
-    end)
-    if ok4 then _G.JAF_PSLastErr = nil; return true end
-    _G.JAF_PSLastErr = lastErr .. " | " .. tostring(err4)
-    return false, _G.JAF_PSLastErr
+    if ok2 then return true end
+    return false, tostring(err)
 end
-_G.JAF_KickToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local ok, err = _G.JAF_TeleportToPrivateServer()
-    if not ok then
-        -- retry once after short delay (remote may not be ready)
-        task.wait(0.35)
-        ok, err = _G.JAF_TeleportToPrivateServer()
-    end
-    return ok, err
-end
+_G.JAF_KickToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false)) return _G.JAF_TeleportToPrivateServer() end
 local function triggerClosestUnlock(yLevel, maxY) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
     local character = LocalPlayer.Character
@@ -1430,7 +1327,7 @@ local function jafGetCustomAsset(fileName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLI
     if ok and asset then return asset end
     return nil
 end
-local JAF_MEDIA_DIR = "rosehub_theme"
+local JAF_MEDIA_DIR = "gerathub_theme"
 local function jafEnsureMediaDir() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         if makefolder and (not isfolder or not isfolder(JAF_MEDIA_DIR)) then makefolder(JAF_MEDIA_DIR) end
@@ -1984,7 +1881,7 @@ pcall(jafSetupGifAnimation, _G.JAF_GifUrl) end)
 end
 if not Config.DefaultWhiteMigrated then
     Config.DefaultWhiteMigrated = true
-    if Config.CurrentTheme == nil or Config.CurrentTheme == "preto" then Config.CurrentTheme = "white" end
+    if Config.CurrentTheme == nil or Config.CurrentTheme == "preto" then Config.CurrentTheme = "dawg" end
     pcall(SaveConfig)
 end
 do
@@ -1992,23 +1889,21 @@ do
     local remapped = removedRemap[Config.CurrentTheme]
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
-if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the light-orange Gerat Hub look over saved/custom/image themes, so the
+Config.CurrentTheme = "dawg"\nif Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
+-- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
 -- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
 do
-    Theme.Background       = Color3.fromRGB(24, 18, 12)
-    Theme.Surface          = Color3.fromRGB(38, 29, 20)
-    Theme.SurfaceHighlight = Color3.fromRGB(58, 42, 27)
-    Theme.Accent1          = Color3.fromRGB(255, 190, 105)
-    Theme.Accent2          = Color3.fromRGB(230, 145, 55)
-    Theme.TextPrimary      = Color3.fromRGB(255, 248, 238)
-    Theme.TextSecondary    = Color3.fromRGB(190, 166, 140)
-    Theme.Success          = Color3.fromRGB(255, 190, 105)
-    Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(88, 61, 36)
-    _G.JAF_ForceMono = true
-    -- stop later image/custom theming from re-tinting
-    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
+    Theme.Background       = Color3.fromRGB(24, 14, 7)
+    Theme.Surface          = Color3.fromRGB(42, 25, 12)
+    Theme.SurfaceHighlight = Color3.fromRGB(65, 37, 16)
+    Theme.Accent1          = Color3.fromRGB(255, 145, 45)
+    Theme.Accent2          = Color3.fromRGB(230, 105, 20)
+    Theme.TextPrimary      = Color3.fromRGB(255, 245, 235)
+    Theme.TextSecondary    = Color3.fromRGB(210, 180, 155)
+    Theme.Success          = Color3.fromRGB(255, 170, 70)
+    Theme.Error            = Color3.fromRGB(205, 85, 45)
+    Theme.Stroke           = Color3.fromRGB(110, 60, 25)
+    _G.JAF_ForceMono = false
 end
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
@@ -2748,9 +2643,9 @@ local function setCarpetSpeed(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
                 hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
             end end end) end
 local infiniteJumpEnabled = State.infiniteJumpEnabled
--- Lightweight Infinite Jump (no lag): only runs while Space held, cached refs
+-- Bubble Hub style Infinite Jump (hold / manual)
 _G.JAF_InfJumpMode = _G.JAF_InfJumpMode or "hold"
-local _ijState = { lastJumpTime = 0, manualLock = false, spaceHeld = false, hrp = nil, hum = nil, char = nil }
+local _ijState = { lastJumpTime = 0, manualLock = false }
 local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
     State.infiniteJumpEnabled = enabled
@@ -2760,68 +2655,60 @@ local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if Connections.infiniteJumpConnection then Connections.infiniteJumpConnection:Disconnect(); Connections.infiniteJumpConnection = nil end
     if Connections._ijInputBegan then Connections._ijInputBegan:Disconnect(); Connections._ijInputBegan = nil end
     if Connections._ijInputEnded then Connections._ijInputEnded:Disconnect(); Connections._ijInputEnded = nil end
-    if Connections._ijCharAdded then Connections._ijCharAdded:Disconnect(); Connections._ijCharAdded = nil end
     if Connections._ijYRemove then pcall(Connections._ijYRemove); Connections._ijYRemove = nil end
-    _ijState.spaceHeld = false
-    _ijState.hrp, _ijState.hum, _ijState.char = nil, nil, nil
     if not enabled then return end
-    local JUMP_VEL = tonumber(_G.JAF_InfJumpVel) or 55
-    local JUMP_GAP = tonumber(_G.JAF_InfJumpGap) or 0.1
-    local function _cacheChar(ch) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        _ijState.char = ch
-        _ijState.hum = ch and ch:FindFirstChildOfClass("Humanoid") or nil
-        _ijState.hrp = ch and ch:FindFirstChild("HumanoidRootPart") or nil
-    end
-    _cacheChar(LocalPlayer.Character)
-    Connections._ijCharAdded = LocalPlayer.CharacterAdded:Connect(function(ch) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        _cacheChar(ch)
-        task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_cacheChar(LocalPlayer.Character) end)
-    end)
-    local function _pulse() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        local hrp = _ijState.hrp
-        local hum = _ijState.hum
-        if not hrp or not hrp.Parent or not hum or hum.Health <= 0 then
-            _cacheChar(LocalPlayer.Character)
-            hrp, hum = _ijState.hrp, _ijState.hum
-            if not hrp or not hum or hum.Health <= 0 then return end
-        end
-        if _G.JAF_DropFlingActive or _G.JAF_TpActive then return end
+    local function _jv() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return tonumber(_G.JAF_InfJumpVel) or 55 end
+    local function _manualPulse() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if (_G.JAF_InfJumpMode or "hold") ~= "manual" or _ijState.manualLock then return end
+        _ijState.manualLock = true
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hum or not hrp or hum.Health <= 0 then _ijState.manualLock = false; return end
         local now = tick()
-        if now - _ijState.lastJumpTime < JUMP_GAP then return end
+        if now - _ijState.lastJumpTime < 0.08 then _ijState.manualLock = false; return end
         _ijState.lastJumpTime = now
         local v = hrp.AssemblyLinearVelocity
-        hrp.AssemblyLinearVelocity = Vector3.new(v.X, JUMP_VEL, v.Z)
-    end
-    Connections._ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        if gp then return end
-        if input.KeyCode ~= Enum.KeyCode.Space and input.KeyCode ~= Enum.KeyCode.ButtonA then return end
-        if (_G.JAF_InfJumpMode or "hold") == "manual" then
-            if _ijState.manualLock then return end
-            _ijState.manualLock = true
-            _pulse()
-            task.delay(0.12, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
+        task.delay(0.14, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 _ijState.manualLock = false end)
-        else
-            _ijState.spaceHeld = true
-            _ijState.lastJumpTime = 0
-            _pulse()
-        end
-    end)
-    Connections._ijInputEnded = UserInputService.InputEnded:Connect(function(input) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    end
+    Connections._ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if gp then return end
         if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
-            _ijState.spaceHeld = false
+            if (_G.JAF_InfJumpMode or "hold") == "manual" then
+                _manualPulse()
+            else
+                _ijState.lastJumpTime = tick() - 0.08
+            end
         end
     end)
-    -- Heartbeat only does work when space is held (cheap early exit)
-    Connections.infiniteJumpConnection = RunService.Heartbeat:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        if not _ijState.spaceHeld then return end
-        if not State.infiniteJumpEnabled then return end
+    Connections.infiniteJumpConnection = RunService.Heartbeat:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        if not SAB_LIVE() or not State.infiniteJumpEnabled then return end
         if (_G.JAF_InfJumpMode or "hold") ~= "hold" then return end
-        _pulse()
+        if _G.JAF_DropFlingActive or _G.JAF_TpActive then return end
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            local char = LocalPlayer.Character
+            if not char then return end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            local now = tick()
+            local held = UserInputService:IsKeyDown(Enum.KeyCode.Space)
+                or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA)
+                or hum.Jump == true
+            if held and (now - _ijState.lastJumpTime) >= 0.08 then
+                _ijState.lastJumpTime = now
+                local v = hrp.AssemblyLinearVelocity
+                hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
+            end
+        end)
     end)
 end
 if infiniteJumpEnabled then
+    -- delay start on late inject (not autoexec) so packages/AC settle first
     if _G.JAF_BootReady == false then
         task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
             local t0 = os.clock()
@@ -2832,7 +2719,6 @@ if infiniteJumpEnabled then
         setInfiniteJump(true)
     end
 end
-
 do
     local floatOn, conn, lastChar
     local function floatOff() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -4424,7 +4310,7 @@ local _RARCOL = {
 }
 function _G.JAF_RarityColor(r) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return (r and _RARCOL[tostring(r):lower()]) or Color3.fromRGB(200, 200, 210) end
-local SAVE_FILE = "rosehub_TPSteal.json"
+local SAVE_FILE = "gerathub_TPSteal.json"
 do
     if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
         if not isfile(SAVE_FILE) then
@@ -10724,122 +10610,32 @@ local _stealable; _stealable = function(a, me) LPH_ATTRIBUTES(ERROR_HANDLING(fal
     return a.owner ~= nil and _ownerPresent[a.owner] == true
 end
 local resolvePriorityTarget; resolvePriorityTarget = function() LPH_ATTRIBUTES(PRESET(FAST), ERROR_HANDLING(false))
-    -- Skyr0 / hub_Mata steal-target order:
-    -- 1) manual  2) priority list (by list order, highest gen, dist tie-break)
-    -- 3) brainrots (highest gen above floor)  4) nearest / highest fallbacks
     local _lpName = LocalPlayer.Name
     local _all = SharedState.AllAnimalsCache
-    if type(_all) ~= "table" or #_all == 0 then return nil end
-
-    local function _plotDist(a) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        local _, hrp = getChar()
-        if not hrp or not a or not a.plot then return math.huge end
-        local plots = Workspace:FindFirstChild("Plots")
-        local plotInst = plots and plots:FindFirstChild(a.plot)
-        if not plotInst then return math.huge end
-        local pos
-        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-pos = plotInst:GetPivot().Position end)
-        if not pos then return math.huge end
-        return (hrp.Position - pos).Magnitude
-    end
-
-    -- 1) Manual override first
-    if manualTarget and _stealable(manualTarget, _lpName) then
-        return manualTarget
-    end
-    if SharedState.SelectedPetData and SharedState.SelectedPetData.animalData then
-        local sd = SharedState.SelectedPetData.animalData
-        if _stealable(sd, _lpName) then return sd end
-    end
-
-    -- 1b) Steal Nearest mode (session)
     if stealNearest then
         local _, hrp = getChar()
-        local bestEntry, bestDist = nil, math.huge
+        local bestEntry = nil
         if hrp then
+            local bestDist = math.huge
             local _hrpPos = hrp.Position
             for _, a in ipairs(_all) do
-                if _stealable(a, _lpName) and not isMyPlot(a.plot) then
+                if _stealable(a, _lpName) then
                     local part = findAdorneeGlobal(a)
-                    if part then
-                        local d = (_hrpPos - part.Position).Magnitude
-                        if d < bestDist then bestDist, bestEntry = d, a end
-                    end
-                end
-            end
+                    if part then local d = (_hrpPos - part.Position).Magnitude if d < bestDist then bestDist = d; bestEntry = a end end
+                end end
         end
         return bestEntry
     end
-
-    -- 2) Priority list FIRST (walk list in order; among matches pick highest gen, then nearest)
-    if (Config.UsePriority ~= false) or (Config.AutoTPPriority ~= false) then
-        local prio = PRIORITY_LIST
-        if type(prio) == "table" then
-            for _, pName in ipairs(prio) do
-                if type(pName) == "string" and pName ~= "" then
-                    local searchName = pName:lower()
-                    local bestPet, bestDist = nil, math.huge
-                    for _, a in ipairs(_all) do
-                        if a and a.name and _stealable(a, _lpName) and not isMyPlot(a.plot) then
-                            local nm = (a.nameLower or tostring(a.name):lower())
-                            local ix = a.index and tostring(a.index):lower() or nil
-                            if nm == searchName or ix == searchName then
-                                local dist = _plotDist(a)
-                                if not bestPet then
-                                    bestPet, bestDist = a, dist
-                                else
-                                    local currentGen = a.genValue or 0
-                                    local bestGen = bestPet.genValue or 0
-                                    if currentGen > bestGen then
-                                        bestPet, bestDist = a, dist
-                                    elseif currentGen == bestGen and dist < bestDist then
-                                        bestPet, bestDist = a, dist
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if bestPet then return bestPet end
-                end
-            end
-        end
-    end
-
-    -- 3) Brainrots second: highest gen above floor (min gen / 10M), distance only as tie-break
-    local _mg = 0
-    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_mg = jafMinGenThreshold and jafMinGenThreshold() or 0 end)
-    local _brainrotFloor = math.max(10000000, tonumber(_mg) or 0)
-    local bestBrainrot, bestBrainrotDist = nil, math.huge
-    for _, a in ipairs(_all) do
-        if a and _stealable(a, _lpName) and not isMyPlot(a.plot)
-           and a.genValue and a.genValue >= _brainrotFloor then
-            local dist = _plotDist(a)
-            local _bestGen = bestBrainrot and (bestBrainrot.genValue or 0) or -1
-            local _thisGen = a.genValue or 0
-            if _thisGen > _bestGen or (_thisGen == _bestGen and dist < bestBrainrotDist) then
-                bestBrainrot, bestBrainrotDist = a, dist
-            end
-        end
-    end
-    if bestBrainrot then return bestBrainrot end
-
-    -- 4) Highest gen fallback (any stealable)
-    do
-        local best, bestGen = nil, -1
+    if manualTarget then return manualTarget end
+    if (Config.UsePriority ~= false) then
+        local best, bestScore = nil, math.huge
+        local _prio = _G.JAF_PrioScore
         for _, a in ipairs(_all) do
-            if _stealable(a, _lpName) and not isMyPlot(a.plot) then
-                local g = a.genValue or 0
-                if g > bestGen then best, bestGen = a, g end
-            end
+            if a and a.name and _stealable(a, _lpName) then local s = _prio(a) if s < bestScore then bestScore, best = s, a end end
         end
-        if best then return best end
+        if best and bestScore < 999999 then return best end
     end
-
-    for _, a in ipairs(_all) do
-        if _stealable(a, _lpName) then return a end
-    end
+    for _, a in ipairs(_all) do if _stealable(a, _lpName) then return a end end
     return nil
 end
 _G.JAF_ResolveBest = resolvePriorityTarget
@@ -12498,104 +12294,265 @@ local function _resetMoveToolsToBackpack(character) LPH_ATTRIBUTES(VM(NONE), ERR
     for _, ch in ipairs(character:GetChildren()) do if ch:IsA("Tool") then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 ch.Parent = LocalPlayer.Backpack end) end end
 end
-executeReset = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    if not SAB_LIVE() then return end
-    -- Bubble Hub style Instant Reset (HipHeight loop then kill)
-    if _G._jafBubbleResetBusy then return end
-    _G._jafBubbleResetBusy = true
-    local done, cancelled = false, false
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not char or not hum then
-        _G._jafBubbleResetBusy = false
-        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-LocalPlayer:LoadCharacter() end)
-        return
+local _jafResetState = _G._JAFInstaResetState or {
+    busy = false,
+    busyAt = 0,
+    token = 0,
+    queued = false,
+    queuedUntil = 0,
+    cameraConnection = nil,
+    connections = {},
+    speed = 1000000,
+    wantAntiDie = false,
+    wantAntiFling = false
+}
+_G._JAFInstaResetState = _jafResetState
+
+local function _jafResetAntiFling()
+    return _G._JAF_AntiFling or _G._AceAntiFling or _G._CandyAntiFling
+end
+
+local function _jafResetPauseGuards()
+    local saved = { antiDie = false, antiFling = false }
+    if type(_G.tpAntiDieDisable) == "function" then
+        saved.antiDie = true
+        pcall(_G.tpAntiDieDisable)
     end
-    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-game:GetService("Players").RespawnTime = 0 end)
-    if _G.tpAntiDieDisable then pcall(_G.tpAntiDieDisable) end
-    local targetChar = char
-    local origHip = hum.HipHeight
-    local loopThread
-    local function _cleanup() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        cancelled = true
-        if loopThread then pcall(task.cancel, loopThread); loopThread = nil end
-        _G._jafBubbleResetBusy = false
+    local antiFling = _jafResetAntiFling()
+    if antiFling and type(antiFling.IsEnabled) == "function" and antiFling.IsEnabled()
+        and type(antiFling.SetEnabled) == "function" then
+        saved.antiFling = true
+        pcall(antiFling.SetEnabled, false)
     end
-    local respawnConn
-    respawnConn = LocalPlayer.CharacterAdded:Connect(function(newChar) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if respawnConn then respawnConn:Disconnect(); respawnConn = nil end
-        done = true
-        _cleanup()
-        task.defer(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-newChar:WaitForChild("Humanoid", 12) end)
-            RunService.Heartbeat:Wait()
-            if _G.tpAntiDieEnable then pcall(_G.tpAntiDieEnable) end
+    if _G._CandyAntiVoid and type(_G._CandyAntiVoid.Suspend) == "function" then
+        pcall(_G._CandyAntiVoid.Suspend, 6)
+    end
+    return saved
+end
+
+local function _jafResetRestoreGuards(saved)
+    saved = saved or {}
+    if saved.antiFling then
+        local antiFling = _jafResetAntiFling()
+        if antiFling and type(antiFling.SetEnabled) == "function" then
+            pcall(antiFling.SetEnabled, true)
+        end
+    end
+    if saved.antiDie and type(_G.tpAntiDieEnable) == "function" then
+        pcall(_G.tpAntiDieEnable)
+    end
+end
+
+local function _jafResetHoldCamera(character)
+    local camera = Workspace.CurrentCamera
+    if not camera or _jafResetState.cameraHeld then return end
+    _jafResetState.cameraHeld = true
+    local oldCFrame, oldFocus = camera.CFrame, camera.Focus
+    pcall(function()
+        camera.CameraType = Enum.CameraType.Scriptable
+        camera.CFrame = oldCFrame
+        camera.Focus = oldFocus
+    end)
+    if _jafResetState.cameraConnection then
+        pcall(function() _jafResetState.cameraConnection:Disconnect() end)
+    end
+    _jafResetState.cameraConnection = RunService.RenderStepped:Connect(function()
+        if Workspace.CurrentCamera ~= camera then return end
+        pcall(function()
+            camera.CameraType = Enum.CameraType.Scriptable
+            camera.CFrame = oldCFrame
+            camera.Focus = oldFocus
         end)
     end)
-    loopThread = task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local iters = 0
-        while targetChar and targetChar.Parent and hum and hum.Health > 0
-              and LocalPlayer.Character == targetChar and not cancelled do
-            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                hum.HipHeight = 1e30
-                hum.AutoRotate = true
-                local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-                if hrp then hrp.CanCollide = false end
-                for _, p in ipairs(targetChar:GetChildren()) do
-                    if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-                        p.CanCollide = false
-                    end
-                end
+    task.spawn(function()
+        local elapsed = 0
+        while LocalPlayer.Character == character and elapsed < 3 do
+            elapsed += task.wait()
+        end
+        if _jafResetState.cameraConnection then
+            pcall(function() _jafResetState.cameraConnection:Disconnect() end)
+            _jafResetState.cameraConnection = nil
+        end
+        local newCharacter = LocalPlayer.Character
+        local currentCamera = Workspace.CurrentCamera or camera
+        if currentCamera then
+            pcall(function()
+                currentCamera.CameraType = Enum.CameraType.Custom
+                local humanoid = newCharacter and newCharacter:FindFirstChildOfClass("Humanoid")
+                if humanoid then currentCamera.CameraSubject = humanoid end
             end)
-            if not targetChar.Parent or hum.Health <= 0 or LocalPlayer.Character ~= targetChar then
-                done = true
-                break
+        end
+        _jafResetState.cameraHeld = false
+    end)
+end
+
+local function _jafResetForceDeath(character)
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    pcall(function()
+        humanoid.PlatformStand = false
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        humanoid.BreakJointsOnDeath = true
+        if humanoid.MaxHealth <= 0 or humanoid.MaxHealth == math.huge then
+            humanoid.MaxHealth = 100
+        end
+        humanoid.Health = 0
+    end)
+    pcall(function() character:BreakJoints() end)
+end
+
+local function _jafInstantReset(speed)
+    if not SAB_LIVE() then return false end
+    local character = LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not (character and humanoid and rootPart and rootPart:IsA("BasePart")) then
+        _jafResetState.queued = true
+        _jafResetState.queuedUntil = os.clock() + 12
+        return true
+    end
+    if _jafResetState.busy and (os.clock() - (_jafResetState.busyAt or 0)) < 5 then
+        return true
+    end
+
+    _jafResetState.busy = true
+    _jafResetState.busyAt = os.clock()
+    _jafResetState.token = (_jafResetState.token or 0) + 1
+    local token = _jafResetState.token
+    local savedGuards = _jafResetPauseGuards()
+    local resetSpeed = tonumber(speed) or tonumber(_jafResetState.speed) or 1000000
+    resetSpeed = math.clamp(math.abs(resetSpeed), 1000, 10000000)
+    _jafResetState.speed = resetSpeed
+
+    task.spawn(function()
+        _jafResetHoldCamera(character)
+        if humanoid and humanoid.Parent then
+            pcall(function()
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+                humanoid.BreakJointsOnDeath = true
+                humanoid.PlatformStand = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+            end)
+        end
+
+        local velocity = Vector3.new(0, resetSpeed, 0)
+        local function applyVelocity()
+            if not rootPart.Parent or LocalPlayer.Character ~= character then return false end
+            return pcall(function()
+                rootPart.AssemblyAngularVelocity = Vector3.zero
+                rootPart.AssemblyLinearVelocity = velocity
+            end)
+        end
+
+        if not applyVelocity() then
+            _jafResetForceDeath(character)
+        else
+            local elapsed = 0
+            while elapsed < 1.5 and rootPart.Parent and LocalPlayer.Character == character do
+                local ok, dt = pcall(function()
+                    if RunService.PreSimulation then
+                        RunService.PreSimulation:Wait()
+                    else
+                        RunService.Heartbeat:Wait()
+                    end
+                    return true
+                end)
+                if not ok then break end
+                elapsed += 1 / 60
+                applyVelocity()
             end
-            iters = iters + 1
-            if iters >= 40 then break end
+            local waitElapsed = 0
+            while LocalPlayer.Character == character and waitElapsed < 3 do
+                waitElapsed += task.wait()
+            end
+            if LocalPlayer.Character == character then
+                local currentHumanoid = character:FindFirstChildOfClass("Humanoid")
+                if currentHumanoid and currentHumanoid.Health > 0 then
+                    _jafResetForceDeath(character)
+                end
+            end
+        end
+
+        local waitElapsed = 0
+        while LocalPlayer.Character == character and waitElapsed < 8 do
+            waitElapsed += task.wait()
+        end
+        if _jafResetState.token == token then
+            _jafResetState.busy = false
+            _jafResetRestoreGuards(savedGuards)
+        end
+    end)
+    return true
+end
+
+_G.JAF_InstantReset = _jafInstantReset
+_G.JAF_InstantResetTune = function(value)
+    local number = tonumber(value)
+    if number then _jafResetState.speed = math.clamp(math.abs(number), 1000, 10000000) end
+    return _jafResetState.speed
+end
+
+table.insert(_jafResetState.connections, LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    if _jafResetState.queued then
+        if (_jafResetState.queuedUntil or 0) < os.clock() then
+            _jafResetState.queued = false
+        else
+            _jafResetState.queued = false
+            task.spawn(function()
+                local humanoid = newCharacter:FindFirstChildOfClass("Humanoid") or newCharacter:WaitForChild("Humanoid", 5)
+                local rootPart = newCharacter:FindFirstChild("HumanoidRootPart") or newCharacter:WaitForChild("HumanoidRootPart", 5)
+                task.wait(0.15)
+                if humanoid and rootPart and humanoid.Health > 0 and LocalPlayer.Character == newCharacter then
+                    _jafInstantReset()
+                end
+            end)
+        end
+    end
+    task.defer(function()
+        pcall(function() newCharacter:WaitForChild("Humanoid", 12) end)
+        RunService.Heartbeat:Wait()
+    end)
+end))
+
+executeReset = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+    if not SAB_LIVE() then return end
+    if _G.JAF_InstantReset and _G.JAF_InstantReset(50) then return end
+    pcall(function() game:GetService("Players").RespawnTime = 0 end)
+    if _G.tpAntiDieDisable then pcall(_G.tpAntiDieDisable) end
+    local character = LocalPlayer.Character
+    if not character then pcall(function() LocalPlayer:LoadCharacter() end); return end
+    pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not (rootPart and humanoid) then return end
+        _resetMoveToolsToBackpack(character)
+        rootPart.CFrame = CFrame.new(0, 15000, 0)
+        RunService.Heartbeat:Wait()
+        _resetMoveToolsToBackpack(character)
+        RunService.Heartbeat:Wait()
+        humanoid, rootPart = character:FindFirstChildOfClass("Humanoid"), character:FindFirstChild("HumanoidRootPart")
+        if not (humanoid and rootPart) then return end
+        pcall(function() humanoid.Health = 0 end)
+        pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Dead) end)
+        if humanoid.Health > 0 then pcall(function() humanoid:TakeDamage(humanoid.MaxHealth * 99) end) end
+        if humanoid.Health > 0 then pcall(function() character:BreakJoints() end) end
+        humanoid, rootPart = character:FindFirstChildOfClass("Humanoid"), character:FindFirstChild("HumanoidRootPart")
+        if humanoid and rootPart and humanoid.Health > 0 then
+            pcall(function()
+                rootPart.AssemblyLinearVelocity = Vector3.zero
+                rootPart.CFrame = CFrame.new(rootPart.Position.X, Workspace.FallenPartsDestroyHeight - 500, rootPart.Position.Z)
+            end)
+        end
+    end)
+    task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+        local originalCharacter = LocalPlayer.Character
+        for _ = 1, 8 do
+            pcall(function() LocalPlayer:LoadCharacter() end)
             task.wait(0.05)
+            if LocalPlayer.Character and LocalPlayer.Character ~= originalCharacter then break end
         end
-        if not done and targetChar and targetChar.Parent and hum.Health > 0 and LocalPlayer.Character == targetChar then
-            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-hum.Health = 0 end)
-            task.wait(0.1)
-            if not targetChar.Parent or hum.Health <= 0 then done = true end
-        end
-        if not done and targetChar and targetChar.Parent and hum then
-            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                hum.HipHeight = origHip
-                local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-                if hrp then hrp.CanCollide = true end
-                for _, p in ipairs(targetChar:GetChildren()) do
-                    if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-                        p.CanCollide = true
-                    end
-                end
-            end)
-            -- fallback: force LoadCharacter if still alive
-            pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-LocalPlayer:LoadCharacter() end)
-        end
-        if not done then
-            task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                local orig = LocalPlayer.Character
-                for _ = 1, 8 do
-                    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-LocalPlayer:LoadCharacter() end)
-                    task.wait(0.05)
-                    if LocalPlayer.Character and LocalPlayer.Character ~= orig then break end
-                end
-            end)
-        end
-        task.delay(2, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-            if respawnConn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-respawnConn:Disconnect() end); respawnConn = nil end
-            _cleanup()
-            if _G.tpAntiDieEnable then pcall(_G.tpAntiDieEnable) end
-        end)
     end)
 end
 _G.JAF_ExecuteReset = executeReset
@@ -15132,7 +15089,7 @@ Config.AntiBeeDisco=v; SaveConfig(); if v and SharedState.ANTI_BEE_DISCO then Sh
 return Config.KickToPrivateOnSteal end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if _G.setKickToPrivateFromSettings then _G.setKickToPrivateFromSettings(v) else Config.KickToPrivateOnSteal=v; SaveConfig() end end,36)
     do
-        local info = JUI.new("TextLabel", autoS, "Size", UDim2.new(1,0,0,0), "AutomaticSize", Enum.AutomaticSize.Y, "LayoutOrder", 37, "BackgroundColor3", cs.SURF, "BackgroundTransparency", 0.4, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 13, "TextColor3", cs.TS, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "TextWrapped", true, "RichText", true, "Text", "<b>How to get your link:</b>\n1. Copy your private server link (share link OK)\n2. Paste it here and press SAVE\n3. Share links are resolved automatically")
+        local info = JUI.new("TextLabel", autoS, "Size", UDim2.new(1,0,0,0), "AutomaticSize", Enum.AutomaticSize.Y, "LayoutOrder", 37, "BackgroundColor3", cs.SURF, "BackgroundTransparency", 0.4, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 13, "TextColor3", cs.TS, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "TextWrapped", true, "RichText", true, "Text", "<b>How to get your link:</b>\n1. Paste your private server link in a browser\n2. Copy the link the browser opens\n3. Paste that here and press SAVE")
         JUI.corner(info, 6)
         _P(Instance.new("UIPadding", info), "PaddingLeft", UDim.new(0,10), "PaddingRight", UDim.new(0,10), "PaddingTop", UDim.new(0,6), "PaddingBottom", UDim.new(0,6))
         local box = JUI.new("TextBox", autoS, "Size", UDim2.new(1,0,0,36), "LayoutOrder", 38, "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TP, "PlaceholderText", "Paste your link here", "PlaceholderColor3", cs.TS, "Text", tostring(Config.PrivateServerCode or ""), "ClearTextOnFocus", false, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
@@ -15144,32 +15101,14 @@ if _G.setKickToPrivateFromSettings then _G.setKickToPrivateFromSettings(v) else 
         local function doSave() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             Config.PrivateServerCode = box.Text
             SaveConfig()
-            local raw = box.Text:gsub("%s", "")
-            if raw == "" then
-                saveBtn.Text = "SAVED (empty)"; saveBtn.BackgroundColor3 = C().SH; saveBtn.TextColor3 = _G.JAF_OnAccent(C().SH)
-                task.delay(1.8, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                    if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
-                end)
-                return
-            end
-            saveBtn.Text = "Resolving..."; saveBtn.BackgroundColor3 = C().SH
-            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                local linkCode, placeId, err = _G.JAF_GetPSLinkCode(box.Text)
-                local msg, col
-                if linkCode then
-                    msg, col = "SAVED! link OK", Theme.Success
-                    if placeId then Config._PSPlaceId = placeId end
-                    Config._PSResolvedLink = linkCode
-                    SaveConfig()
-                else
-                    msg, col = "SAVED - " .. tostring(err or "couldn't read link"), Theme.Error
-                end
-                if saveBtn and saveBtn.Parent then
-                    saveBtn.Text = msg; saveBtn.BackgroundColor3 = col; saveBtn.TextColor3 = _G.JAF_OnAccent(col)
-                    task.delay(2.2, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-                        if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
-                    end)
-                end
+            local linkCode = (_G.JAF_ParsePSInput and _G.JAF_ParsePSInput(box.Text)) or nil
+            local msg, col
+            if box.Text:gsub("%s","") == "" then msg, col = "SAVED (empty)", C().SH
+            elseif not linkCode then msg, col = "SAVED - couldn't read a link code", Theme.Error
+            else msg, col = "SAVED!", Theme.Success end
+            saveBtn.Text = msg; saveBtn.BackgroundColor3 = col; saveBtn.TextColor3 = _G.JAF_OnAccent(col)
+            task.delay(1.8, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
             end) end
         saveBtn.MouseButton1Click:Connect(doSave)
         box.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
