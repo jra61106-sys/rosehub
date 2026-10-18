@@ -963,10 +963,7 @@ if _G.JAF_NoCarpetScan == true then Config.CarpetAutoBuy = false end
 if _G.JAF_FastBuyPublic == nil then _G.JAF_FastBuyPublic = true end
 _G.JAF_FastBuyAllowed = function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return true end
--- Gerat Hub: fixed compact main GUI (300x230) — UIScale 1 so size is literal
-do
-    Config.UIScale = 1
-end
+
 _G.JAF_FFlagList = {
     {"DFFlagBrowserTrackerIdTelemetryEnabled","False"},{"DFFlagPreloadAsyncSupportTexturePack","True"},{"DFFlagTextureQualityOverrideEnabled","True"},
     {"DFFlagVideoCaptureServiceEnabled","False"},{"DFFlagSampleAndRefreshRakPing","True"},{"DFFlagRakNetUseSlidingWindow4","True"},
@@ -2008,8 +2005,6 @@ end
 _G.JAF_ApplyOrangeTheme()
 _G.JAF_ForceMono = false
 if Config then
-    Config.UIScale = 1
-    Config.PanelScales = {}
     Config.PanelSizes = Config.PanelSizes or {}
     Config.PanelSizes["JustAFanSettings"] = { w = 300, h = 230 }
 end
@@ -14977,8 +14972,11 @@ Config[key] = v; SaveConfig() end, order, full)
     local _sp = Config.JustAFanSettingsPos
     local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 300, 0, 230), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -115), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
     panel:SetAttribute("JAFBaseScale", 1)
+    panel:SetAttribute("JAFNoUIScale", true)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 1; us.Parent = panel end)
+        for _, o in ipairs(panel:GetChildren()) do if o:IsA("UIScale") then o:Destroy() end end
+        panel.Size = UDim2.new(0, 300, 0, 230)
+    end)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
@@ -17122,6 +17120,12 @@ do
                 if vp.X < 10 then vp = _G.JAF_Viewport() end
                 for _, ch in ipairs(sg:GetChildren()) do
                     if ch:IsA("GuiObject") then
+                        -- Main GUI fixed size 300x230 — no UIScale shrink/grow
+                        if ch:GetAttribute("JAFNoUIScale") or ch.Name == "MainPanel" then
+                            for _, o in ipairs(ch:GetChildren()) do if o:IsA("UIScale") then o:Destroy() end end
+                            if ch.Name == "MainPanel" then ch.Size = UDim2.new(0, 300, 0, 230) end
+                            continue
+                        end
                         local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
                         local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
                         if base <= 0.05 or base > 1 then base = 1 end
@@ -17145,14 +17149,13 @@ do
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local t0 = tick()
         while true do
-            Config.UIScale = 1
             if _G.JAF_ForceOrange and Theme and Theme.Accent1 then
                 local a = Theme.Accent1
                 if not (a.R > 0.85 and a.G > 0.4 and a.G < 0.7 and a.B < 0.25) then
                     if _G.JAF_ApplyOrangeTheme then pcall(_G.JAF_ApplyOrangeTheme) end
                 end
             end
-            pcall(_G.JAF_ApplyUIScale, Config.UIScale or 0.55)
+            pcall(_G.JAF_ApplyUIScale, Config.UIScale or 1)
             task.wait((tick() - t0 < 15) and 0.2 or 2)
         end
     end)
