@@ -13168,7 +13168,31 @@ if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 				task.delay(0.3, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			end) end end
+	local _invisLocalConn = nil
+	local function _setLocalCharInvis(on) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+		local character = LocalPlayer.Character
+		if not character then return end
+		local mod = on and 1 or 0
+		pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+			for _, d in ipairs(character:GetDescendants()) do
+				if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
+					d.LocalTransparencyModifier = mod
+				end
+			end
+		end)
+		if _invisLocalConn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_invisLocalConn:Disconnect() end); _invisLocalConn = nil end
+		if on then
+			_invisLocalConn = character.DescendantAdded:Connect(function(d) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+				if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
+					pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+d.LocalTransparencyModifier = 1 end)
+				end
+			end)
+		end
+	end
 	local function turnOff() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+		pcall(_setLocalCharInvis, false)
 		animPlaying = false
 		_G.invisibleStealEnabled = false
 		_G.invisAutoActive = false
@@ -13247,6 +13271,7 @@ humanoid:ChangeState(Enum.HumanoidStateType.Freefall) end)
 		if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, true) end
 		tracks = {}; removeFolders()
 		local success = doClone()
+		if success then pcall(_setLocalCharInvis, true) end
 		if success then
 			if _G.JAF_InvisFreezeOnEngage ~= false then
 				pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -14814,7 +14839,7 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 720, 0, 520), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 60, 0.5, -260), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 580, 0, 430), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 60, 0.5, -215), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
