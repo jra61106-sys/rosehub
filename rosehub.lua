@@ -899,7 +899,7 @@ local DefaultConfig = {
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
     CurrentTheme = "white",
-    CustomThemeHex = "FF8C00",
+    CustomThemeHex = "FFC800",
     ThemeImageUrl = "",
     ShowMiniActions = true,
     MiniUIPos = {X = 0.01, Y = 0.35},
@@ -1999,16 +1999,16 @@ do
     Theme.Background       = Color3.fromRGB(20, 20, 20)
     Theme.Surface          = Color3.fromRGB(34, 34, 34)
     Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(255, 140, 0)
-    Theme.Accent2          = Color3.fromRGB(210, 105, 0)
+    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
+    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
     Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
     Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(255, 165, 0)
+    Theme.Success          = Color3.fromRGB(235, 235, 235)
     Theme.Error            = Color3.fromRGB(205, 120, 120)
     Theme.Stroke           = Color3.fromRGB(50, 50, 50)
     _G.JAF_ForceMono = true
     -- stop later image/custom theming from re-tinting
-    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "dawg"; Config.CustomThemeHex = "FF8C00" end
+    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
 end
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
@@ -13100,9 +13100,7 @@ c:Destroy() end)
 				end end
 			clone.Parent = character
 			clone.Anchored = false
-			clone.CanCollide = true
 			oldRoot.Parent = Workspace.CurrentCamera
-			oldRoot.CanCollide = false
 			clone.CFrame = oldRoot.CFrame; character.PrimaryPart = clone
 			character.Parent = Workspace
 			for _, v in pairs(character:GetDescendants()) do
@@ -13166,132 +13164,11 @@ t:Stop() end) end
 			animTrack.Stopped:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 			task.delay(0, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-				-- XenHub: freeze flat frame (InvisAnimFrame, default 0.8)
-				local fr = tonumber(_G.InvisAnimFrame) or 0.8
-				if animTrack then
-					animTrack.TimePosition = fr
-					animTrack:AdjustSpeed(0)
-				end
+				animTrack.TimePosition = 0.7
+				task.delay(0.3, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			end) end end
-	local _invisLocalConn = nil
-	local _invisLocalOn = false
-	local _invisSavedHip = nil
-	local function _hideOneLocal(d, on) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		if not d then return end
-		if d:IsA("BasePart") then
-			d.LocalTransparencyModifier = on and 1 or 0
-			-- full client hide (body + legs + head + accessories)
-			if on then
-				if d:GetAttribute("_jafInvisTrans") == nil then d:SetAttribute("_jafInvisTrans", d.Transparency) end
-				d.Transparency = 1
-				d.CanCollide = false
-			else
-				local t = d:GetAttribute("_jafInvisTrans")
-				if t ~= nil then d.Transparency = t; d:SetAttribute("_jafInvisTrans", nil) end
-				d.LocalTransparencyModifier = 0
-			end
-		elseif d:IsA("Decal") or d:IsA("Texture") then
-			d.LocalTransparencyModifier = on and 1 or 0
-			if on then
-				if d:GetAttribute("_jafInvisTrans") == nil then d:SetAttribute("_jafInvisTrans", d.Transparency) end
-				d.Transparency = 1
-			else
-				local t = d:GetAttribute("_jafInvisTrans")
-				if t ~= nil then d.Transparency = t; d:SetAttribute("_jafInvisTrans", nil) end
-			end
-		elseif d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") or d:IsA("Fire") or d:IsA("Smoke") or d:IsA("Sparkles") then
-			if on then
-				if d:GetAttribute("_jafInvisWasOn") == nil then d:SetAttribute("_jafInvisWasOn", d.Enabled and true or false) end
-				d.Enabled = false
-			else
-				local was = d:GetAttribute("_jafInvisWasOn")
-				if was ~= nil then d.Enabled = was == true; d:SetAttribute("_jafInvisWasOn", nil) end
-			end
-		elseif d:IsA("LayerCollector") or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
-			if on then
-				if d:GetAttribute("_jafInvisGui") == nil then d:SetAttribute("_jafInvisGui", d.Enabled and true or false) end
-				d.Enabled = false
-			else
-				local was = d:GetAttribute("_jafInvisGui")
-				if was ~= nil then d.Enabled = was == true; d:SetAttribute("_jafInvisGui", nil) end
-			end
-		end
-	end
-	local function _buryBodyFlat(character) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		-- XenHub-style: only hide visuals. NEVER touch HipHeight / Physics / Root attachment.
-		-- Movement stays on the clone HRP exactly like a normal character.
-		if not character then return end
-		local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
-		local hum = character:FindFirstChildOfClass("Humanoid")
-		if hum then
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-				hum.AutoRotate = true
-				hum.PlatformStand = false
-				hum.Sit = false
-				if hum.WalkSpeed <= 0 then hum.WalkSpeed = 16 end
-			end)
-		end
-		if root then
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-root.Anchored = false; root.CanCollide = true end)
-		end
-		if clone then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-clone.CanCollide = true; clone.Anchored = false end) end
-		for _, d in ipairs(character:GetDescendants()) do
-			if d:IsA("BasePart") then
-				d.LocalTransparencyModifier = 1
-				if d.Name ~= "HumanoidRootPart" and d ~= root and d ~= clone then
-					d.CanCollide = false
-				end
-			elseif d:IsA("Decal") or d:IsA("Texture") then
-				d.LocalTransparencyModifier = 1
-			end
-		end
-	end
-	local function _setLocalCharInvis(on) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-		_invisLocalOn = on == true
-		local character = LocalPlayer.Character
-		if not character then return end
-		pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-			for _, d in ipairs(character:GetDescendants()) do _hideOneLocal(d, on) end
-			for _, acc in ipairs(character:GetChildren()) do
-				if acc:IsA("Accessory") or acc:IsA("Hat") or acc:IsA("Tool") then
-					for _, d in ipairs(acc:GetDescendants()) do _hideOneLocal(d, on) end
-				end
-			end
-			if oldRoot and oldRoot.Parent then
-				_hideOneLocal(oldRoot, on)
-				for _, d in ipairs(oldRoot:GetDescendants()) do _hideOneLocal(d, on) end
-			end
-			if clone and clone.Parent then
-				_hideOneLocal(clone, on)
-				for _, d in ipairs(clone:GetDescendants()) do _hideOneLocal(d, on) end
-			end
-			if on then
-				_buryBodyFlat(character)
-			else
-				local hum = character:FindFirstChildOfClass("Humanoid")
-				if hum and _invisSavedHip ~= nil then hum.HipHeight = _invisSavedHip; _invisSavedHip = nil end
-				if _invisPoseAtt and _invisPoseBase then _invisPoseAtt.CFrame = _invisPoseBase end
-				_G._jafInvisAttBase = nil
-			end
-		end)
-		if _invisLocalConn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_invisLocalConn:Disconnect() end); _invisLocalConn = nil end
-		if on and character then
-			_invisLocalConn = character.DescendantAdded:Connect(function(d) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-				if _invisLocalOn then pcall(_hideOneLocal, d, true) end
-			end)
-		end
-	end
-	local function _reapplyLocalInvis() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		if not _invisLocalOn then return end
-		local character = LocalPlayer.Character
-		if not character then return end
-		_buryBodyFlat(character)
-	end
 	local function turnOff() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		pcall(_setLocalCharInvis, false)
 		animPlaying = false
 		_G.invisibleStealEnabled = false
 		_G.invisAutoActive = false
@@ -13370,25 +13247,7 @@ humanoid:ChangeState(Enum.HumanoidStateType.Freefall) end)
 		if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, true) end
 		tracks = {}; removeFolders()
 		local success = doClone()
-		if success then pcall(_setLocalCharInvis, true) end
 		if success then
-			-- ensure normal movement right away
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-				local h = character:FindFirstChildOfClass("Humanoid")
-				local r = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
-				if h then
-					h.AutoRotate = true
-					h.PlatformStand = false
-					h.Sit = false
-					if h.WalkSpeed <= 0 then h.WalkSpeed = 16 end
-					if h.JumpPower <= 0 and h.UseJumpPower then h.JumpPower = 50 end
-					h:ChangeState(Enum.HumanoidStateType.Running)
-				end
-				if r then r.Anchored = false; r.CanCollide = true end
-				local pm = LocalPlayer:FindFirstChild("PlayerScripts")
-				pm = pm and pm:FindFirstChild("PlayerModule")
-				if pm then require(pm):GetControls():Enable() end
-			end)
 			if _G.JAF_InvisFreezeOnEngage ~= false then
 				pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
 					local pm = LocalPlayer:FindFirstChild("PlayerScripts")
@@ -13413,7 +13272,6 @@ if _fhum.Sit then _fhum.Sit = false end end)
 if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 				end end
 				if _G.JAF_InvisFold ~= false then task.wait(0.05); animationTrickery() end
-			pcall(_setLocalCharInvis, true)
 			task.defer(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
 				if _G.resetBrainrotBeam then pcall(_G.resetBrainrotBeam) end
 				if _G.resetPlotBeam then pcall(_G.resetPlotBeam) end
@@ -13438,21 +13296,19 @@ if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 				for _, ac in ipairs(invisRagdollACs) do if ac.Parent and not ac.Enabled then ac.Enabled = true end end
 			end
 			connection = RunService.PreSimulation:Connect(function(_psDt) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-				pcall(_reapplyLocalInvis)
 				local _invHum = character and character:FindFirstChildOfClass("Humanoid")
 				if _invHum and _invHum.Health > 0 and oldRoot then
 					local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
 					if root then
 							if _G.JAF_InvisRagdollGuard ~= false then pcall(_invisRagGuard, character, _invHum) end
-							-- XenHub: keep clone collidable so you walk normally
-							if clone then clone.CanCollide = true; clone.Anchored = false end
-							if root then root.CanCollide = true; root.Anchored = false end
-							if _invHum then
-								if _invHum.PlatformStand then _invHum.PlatformStand = false end
-								if _invHum.Sit then _invHum.Sit = false end
-								if not _invHum.AutoRotate then _invHum.AutoRotate = true end
-								if _invHum.WalkSpeed <= 0 then _invHum.WalkSpeed = 16 end
-							end
+							if _G.JAF_InvisPoseFix ~= false and _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase and _invisPoseRestDY then
+								local _plt = character:FindFirstChild("LowerTorso")
+								if _plt then
+									local _appl = _invisPoseBase.Position.Y - _invisPoseAtt.CFrame.Position.Y
+									local _lift = (_plt.Position.Y - root.Position.Y) + _appl - _invisPoseRestDY
+									_lift = math.clamp(_lift, 0, tonumber(_G.JAF_InvisPoseMaxLift) or 8)
+									if math.abs(_lift - _appl) > 0.01 then _invisPoseAtt.CFrame = _invisPoseBase * CFrame.new(0, -_lift, 0) end
+								end end
 							if skipFrames > 0 then skipFrames = skipFrames - 1; lastSetPosition = nil
 						elseif lastSetPosition then
 							local currentPos = oldRoot.Position
@@ -13830,8 +13686,8 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
         _P(mainStroke, "Color", Theme.Accent1, "Thickness", 1, "Transparency", 0.45)
         if Config.PanelScales then Config.PanelScales["JustAFanStatusHUD"] = nil end
         local _splitX = 322
-        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
-        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
+        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub\n@herbrunettehairs", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
+        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@pumpkinjustlarping", "Font", Enum.Font.GothamMedium, "TextSize", 14)
         hubOwner.TextColor3 = Color3.fromRGB(255, 255, 255)
         hubOwner.TextXAlignment = Enum.TextXAlignment.Center
         local div = JUI.new("Frame", main, "Size", UDim2.new(0, 1, 0, 30), "Position", UDim2.new(0, _splitX, 0.5, -15), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 0.45, "BorderSizePixel", 0)
@@ -14958,10 +14814,7 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 480, 0, 360), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -180), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
-    panel:SetAttribute("JAFBaseScale", 0.88)
-    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.88; us.Parent = panel end)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 720, 0, 520), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 60, 0.5, -260), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
