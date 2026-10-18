@@ -15544,7 +15544,7 @@ return Config.MobileSheet ~= false end,function(v) LPH_ATTRIBUTES(VM(NONE), ERRO
 pcall(_G.JAF_MobileRefresh) end)
     end,93,true)
     makeSec(uhS,"PANEL SIZE",25)
-    _sliderRow(uhS, 26, "UI Scale", 0.5, 1.5, 0.05, false, Config.UIScale or 1,
+    _sliderRow(uhS, 26, "UI Scale", 0.75, 1.25, 0.05, false, math.clamp(tonumber(Config.UIScale) or 1, 0.75, 1.25),
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 Config.UIScale = v; if _G.JAF_ApplyUIScale then _G.JAF_ApplyUIScale(v) end end,
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -17064,35 +17064,9 @@ do
             end end
         pcall(SaveConfig)
     end
-    local FIT_PAD = 14
-    local FIT_MIN = 0.35
-    local function fitScale(want, w, h, vp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if w <= 0 or h <= 0 then return want end
-        local maxK = math.min((vp.X - FIT_PAD) / w, (vp.Y - FIT_PAD) / h)
-        if maxK < want then return math.max(maxK, FIT_MIN) end
-        return want
-    end
-    local MIN_VISIBLE = 0.6
-    local function clampOnScreen(ch, vp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local w, h = ch.AbsoluteSize.X, ch.AbsoluteSize.Y
-        if w < 8 or h < 8 then return end
-        if w > vp.X or h > vp.Y then return end
-        local px, py = ch.Position.X, ch.Position.Y
-        local ax, ay = ch.AnchorPoint.X * w, ch.AnchorPoint.Y * h
-        local curX = px.Scale * vp.X + px.Offset - ax
-        local curY = py.Scale * vp.Y + py.Offset - ay
-        local visW = math.max(0, math.min(curX + w, vp.X) - math.max(curX, 0))
-        local visH = math.max(0, math.min(curY + h, vp.Y) - math.max(curY, 0))
-        if visW >= w * MIN_VISIBLE and visH >= h * MIN_VISIBLE then return end
-        local newX = math.clamp(curX, 0, vp.X - w)
-        local newY = math.clamp(curY, 0, vp.Y - h)
-        if math.abs(newX - curX) < 2 and math.abs(newY - curY) < 2 then return end
-        local function put(u, want, span) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            if u.Scale ~= 0 and span > 0 then return UDim.new(want / span, 0) end
-            return UDim.new(0, math.floor(want))
-        end
-        ch.Position = UDim2.new(put(px, newX + ax, vp.X), put(py, newY + ay, vp.Y))
-    end
+    -- Stable UI scaling: apply one consistent UIScale to each independent
+    -- top-level panel. Avoid per-panel auto-fit and position correction, which
+    -- caused panels to get different scales and jump around on touch screens.
     local lastSize = setmetatable({}, { __mode = "k" })
     local function sizeSettled(ch) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local now = ch.AbsoluteSize
@@ -17101,47 +17075,41 @@ do
         return was ~= nil and math.abs(was.X - now.X) < 1 and math.abs(was.Y - now.Y) < 1
     end
     _G.JAF_ApplyUIScale = function(scale) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        scale = math.clamp(tonumber(scale) or 1, 0.5, 1.5)
+        scale = math.clamp(tonumber(scale) or 1, 0.75, 1.25)
         Config.UIScale = scale
         local panelScales = Config.PanelScales or {}
-        local dragging = (tick() - (_G.JAF_DragBusy or 0)) < 0.6
         for _, name in ipairs(SCALED_GUIS) do
             local sg = hubFind(name)
             if sg then
-                local per = math.clamp(tonumber(panelScales[name]) or 1, 0.5, 1.5)
-                local vp = sg.AbsoluteSize
-                if vp.X < 10 then vp = _G.JAF_Viewport() end
                 for _, ch in ipairs(sg:GetChildren()) do
                     if ch:IsA("GuiObject") then
-                        -- Keep MainPanel at its original fixed size; scaling it breaks
-                        -- the internal layout on smaller touch screens.
+                        -- Main settings panel uses a fixed 300x230 layout;
+                        -- scaling its root breaks offsets and touch hitboxes.
                         if ch:GetAttribute("JAFNoUIScale") or ch.Name == "MainPanel" then
                             for _, o in ipairs(ch:GetChildren()) do
-                                if o:IsA("UIScale") then o:Destroy() end
+                                if o:IsA("UIScale") and o.Name == "JAFUIScale" then o:Destroy() end
                             end
-                            if ch.Name == "MainPanel" then
-                                ch.Size = UDim2.new(0, 300, 0, 230)
+                        else
+                            local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
+                            local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
+                            if base <= 0.05 or base > 1 then base = 1 end
+                            local per = math.clamp(tonumber(panelScales[name]) or 1, 0.75, 1.25)
+                            local eff = fullBleed and 1 or math.clamp(scale * per * base, 0.75, 1.25)
+                            local us = ch:FindFirstChild("JAFUIScale")
+                            if not us then
+                                us = Instance.new("UIScale")
+                                us.Name = "JAFUIScale"
+                                us.Parent = ch
                             end
-                            continue
+                            for _, o in ipairs(ch:GetChildren()) do
+                                if o ~= us and o:IsA("UIScale") then o:Destroy() end
+                            end
+                            if math.abs(us.Scale - eff) > 0.0005 then us.Scale = eff end
                         end
-                        local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
-                        local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
-                        if base <= 0.05 or base > 1 then base = 1 end
-                        local eff = scale * per * base
-                        if fullBleed then
-                            eff = 1
-                        elseif not ch:GetAttribute("JAFSheetPinned") then
-                            eff = fitScale(eff, ch.Size.X.Offset, ch.Size.Y.Offset, vp)
-                        end
-                        local us = ch:FindFirstChild("JAFUIScale")
-                        if not us then us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Parent = ch end
-                        for _, o in ipairs(ch:GetChildren()) do if o ~= us and o:IsA("UIScale") then o:Destroy() end end
-                        if math.abs(us.Scale - eff) > 0.0005 then us.Scale = eff end
-                        local settled = sizeSettled(ch)
-                        if not fullBleed and not dragging and settled
-                           and not ch:GetAttribute("JAFSheetPinned") then
-                            clampOnScreen(ch, vp)
-                        end end end end end
+                    end
+                end
+            end
+        end
         if _G.JAF_MobileFitPanel then pcall(_G.JAF_MobileFitPanel) end
     end
     task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
