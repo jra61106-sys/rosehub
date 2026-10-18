@@ -2573,7 +2573,7 @@ function JUI.note(parent, txt, order) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(fa
     JUI.new("TextLabel", row, "Size", UDim2.new(1,-14,1,0), "Position", UDim2.new(0,12,0,0), "BackgroundTransparency", 1, "Text", txt, "Font", Enum.Font.Gotham, "TextSize", 10, "TextColor3", Theme.TextSecondary, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
     return row
 end
-local SW_OFF = Color3.fromRGB(25,25,25)
+local SW_OFF = Color3.fromRGB(105,45,0)
 function JUI.toggle(parent, lbl, get, set, order, full) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local row = JUI.new("Frame", parent, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", Theme.Surface, "BackgroundTransparency", 0.08, "BorderSizePixel", 0, "LayoutOrder", order)
     JUI.corner(row, 7)
@@ -2584,7 +2584,7 @@ function JUI.toggle(parent, lbl, get, set, order, full) LPH_ATTRIBUTES(VM(NONE),
     local dot = JUI.new("Frame", sw, "Size", UDim2.new(0,14,0,14), "Position", on and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7), "BackgroundColor3", _G.JAF_OnAccent())
     JUI.round(dot)
     local swb = JUI.new("TextButton", sw, "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "Text", "", "ZIndex", 4, "AutoButtonColor", false)
-    if _G.JAF_MobileOn() then _P(swb, "Parent", row, "Size", UDim2.new(1,0,1,0), "Position", UDim2.new(0,0,0,0), "ZIndex", 6) end
+    -- Keep the hitbox on the switch itself: tapping the row/label must not toggle it.
     _G.JAF_OnTap(swb, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         if type(set) ~= "function" then return end
         local ns = not get(); set(ns)
@@ -15356,8 +15356,10 @@ Config[key] = v; SaveConfig() end, order, full)
     local topbar = JUI.new("Frame", content, "Size", UDim2.new(1, -16, 0, 28), "Position", UDim2.new(0, 8, 0, 6), "BackgroundTransparency", 1, "ZIndex", 20)
     MakeDraggable(topbar, panel); attachDragSave(topbar)
     local hcSz = _mob and 40 or 26
-    local hClose = JUI.new("TextButton", topbar, "Size", UDim2.new(0, hcSz, 0, hcSz), "Position", UDim2.new(1, -hcSz, 0.5, -hcSz / 2), "BackgroundColor3", CS.SURF, "Text", "\u{2013}", "Font", Enum.Font.GothamBold, "TextSize", _mob and 24 or 18, "TextColor3", CS.TP, "AutoButtonColor", false, "BorderSizePixel", 0, "ZIndex", 21)
+    local hClose = JUI.new("TextButton", topbar, "Size", UDim2.new(0, hcSz, 0, hcSz), "Position", UDim2.new(1, -hcSz, 0.5, -hcSz / 2), "BackgroundColor3", CS.SURF, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", _mob and 24 or 18, "TextColor3", CS.TP, "AutoButtonColor", false, "BorderSizePixel", 0, "ZIndex", 21)
     JUI.corner(hClose, 6)
+    hClose.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+    hClose.TextColor3 = Color3.fromRGB(255, 255, 255)
     hClose.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 panel.Visible = false end)
     if _G.JAF_SettingsFpsConn then
@@ -16715,19 +16717,9 @@ buildMobileBarUI = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         else
             btn.Position = UDim2.new(1, -(SZ + 14), 0, _G.JAF_TopInset() + 10)
         end end
-    _P(btn, "BackgroundColor3", Theme.Background, "AutoButtonColor", false, "BorderSizePixel", 0, "Text", "", "Active", true, "ZIndex", 10, "Parent", sg)
+    _P(btn, "BackgroundColor3", Color3.fromRGB(255, 140, 0), "AutoButtonColor", false, "BorderSizePixel", 0, "Text", "GH", "Font", Enum.Font.GothamBlack, "TextSize", 17, "TextColor3", Color3.fromRGB(255, 255, 255), "Active", true, "ZIndex", 10, "Parent", sg)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-    local bStroke = JUI.new("UIStroke", btn, "Color", Theme.TextPrimary, "Thickness", 2, "Transparency", 0.25)
-    local mark = JUI.new("ImageLabel", btn, "Size", UDim2.new(1, 0, 1, 0), "Position", UDim2.new(0.5, 0, 0.5, 0), "AnchorPoint", Vector2.new(0.5, 0.5), "BackgroundTransparency", 1, "ZIndex", 11, "ScaleType", Enum.ScaleType.Crop, "Image", _G.JAF_DawgResolved or "")
-    Instance.new("UICorner", mark).CornerRadius = UDim.new(1, 0)
-    if not (_G.JAF_DawgResolved and _G.JAF_DawgResolved ~= "") then
-        local fb = JUI.new("TextLabel", btn, "Size", UDim2.new(1, 0, 1, 0), "BackgroundTransparency", 1, "ZIndex", 11, "Text", "SD", "Font", Enum.Font.GothamBlack, "TextSize", 20, "TextColor3", Theme.TextPrimary)
-        task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local ok, a = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return resolveDawgImage() end)
-            if ok and type(a) == "string" and a ~= "" and mark and mark.Parent then
-                mark.Image = a; if fb and fb.Parent then fb:Destroy() end
-            end end) end
+    local bStroke = JUI.new("UIStroke", btn, "Color", Color3.fromRGB(255, 205, 120), "Thickness", 2, "Transparency", 0.1)
     local TRAY_W = 208
     local tray = JUI.new("Frame", sg, "Name", "Tray", "Size", UDim2.new(0, TRAY_W, 0, 260), "BackgroundColor3", Theme.Background, "BackgroundTransparency", 0.06, "BorderSizePixel", 0, "Visible", false, "ZIndex", 8)
     Instance.new("UICorner", tray).CornerRadius = UDim.new(0, 14)
