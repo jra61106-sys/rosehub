@@ -1145,25 +1145,92 @@ local function _jafParsePSInput(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(f
     if input == "" then return nil end
     local placeId = tonumber(input:match("/games/(%d+)"))
     local direct = input:match("[?&]privateServerLinkCode=([%w%-_]+)") or input:match("[?&]linkCode=([%w%-_]+)")
-    if direct then return direct, placeId, false end
-    if input:match("[?&]code=([%w%-_]+)") then return nil, placeId, true end
-    if input:match("^[%w%-_]+$") then
-        local looksShare = (#input == 32) and (input:match("^[0-9a-f]+$") ~= nil)
-        if looksShare then return nil, placeId, true end
-        return input, placeId, false
+    if direct then return direct, placeId, false, nil end
+    -- share link: roblox.com/share?code=...&type=Server
+    local shareCode = input:match("[?&]code=([%w%-_]+)") or input:match("roblox%.com/share[^%w]*code=([%w%-_]+)")
+    if not shareCode and input:match("^[%w%-_]+$") then
+        if (#input == 32) and (input:match("^[0-9a-fA-F]+$") ~= nil) then
+            shareCode = input
+        else
+            return input, placeId, false, nil
+        end
     end
+    if shareCode then return nil, placeId, true, shareCode end
     return nil
 end
 _G.JAF_ParsePSInput = _jafParsePSInput
-_G.JAF_TeleportToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local linkCode, placeId, shareWarn = _jafParsePSInput(Config.PrivateServerCode)
-    if shareWarn then
-        _G.JAF_PSLastErr = "share-code-not-linkCode"
-        return false, "that's a SHARE code, not a linkCode (use privateServerLinkCode URL)"
+-- Resolve share?code=... to privateServerLinkCode via Roblox API
+_G.JAF_ResolveShareCode = function(shareCode) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    if type(shareCode) ~= "string" or shareCode == "" then return nil, nil, "empty share code" end
+    shareCode = shareCode:gsub("%s+", "")
+    if _G.JAF_ResolvedPS and _G.JAF_ResolvedPS.share == shareCode and _G.JAF_ResolvedPS.linkCode then
+        return _G.JAF_ResolvedPS.linkCode, _G.JAF_ResolvedPS.placeId, nil
     end
+    local body = HttpService:JSONEncode({ linkId = shareCode, linkType = "Server" })
+    local url = "https://apis.roblox.com/share-links/v1/resolve"
+    local resp, err
+    local req = (syn and syn.request) or (http and http.request) or http_request or request
+    if type(req) == "function" then
+        local ok, r = pcall(req, {
+            Url = url,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json", ["Accept"] = "application/json" },
+            Body = body,
+        })
+        if ok and type(r) == "table" then
+            resp = r.Body or r.body
+        else
+            err = tostring(r)
+        end
+    end
+    if not resp and type(game.HttpPost) == "function" then
+        local ok, r = pcall(game.HttpPost, game, url, body, true, "application/json")
+        if ok then resp = r else err = tostring(r) end
+    end
+    if not resp and type(HttpService.PostAsync) == "function" then
+        local ok, r = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson, false)
+        end)
+        if ok then resp = r else err = tostring(r) end
+    end
+    if type(resp) ~= "string" or resp == "" then
+        return nil, nil, err or "share resolve failed (no http)"
+    end
+    local okj, data = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+return HttpService:JSONDecode(resp) end)
+    if not okj or type(data) ~= "table" then
+        return nil, nil, "bad resolve response"
+    end
+    -- typical fields: privateServerLinkCode / linkCode, placeId / placeIds
+    local link = data.privateServerLinkCode or data.linkCode
+        or (data.data and (data.data.privateServerLinkCode or data.data.linkCode))
+    local pid = data.placeId or data.placeID
+        or (data.data and (data.data.placeId or data.data.placeID))
+    if type(data.placeIds) == "table" and data.placeIds[1] then pid = pid or data.placeIds[1] end
+    if type(link) ~= "string" or link == "" then
+        -- sometimes nested under status / linkStatus
+        local st = data.status or data.linkStatus or (data.data and data.data.status)
+        return nil, nil, "no linkCode in resolve (" .. tostring(st or "unknown") .. ")"
+    end
+    pid = tonumber(pid)
+    _G.JAF_ResolvedPS = { share = shareCode, linkCode = link, placeId = pid }
+    return link, pid, nil
+end
+_G.JAF_GetPSLinkCode = function(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    input = input or Config.PrivateServerCode
+    local linkCode, placeId, isShare, shareCode = _jafParsePSInput(input)
+    if linkCode then return linkCode, placeId, nil end
+    if isShare and shareCode then
+        local lc, pid, e = _G.JAF_ResolveShareCode(shareCode)
+        return lc, pid or placeId, e
+    end
+    return nil, placeId, "no valid code"
+end
+_G.JAF_TeleportToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    local linkCode, placeId, resolveErr = _G.JAF_GetPSLinkCode(Config.PrivateServerCode)
     if not linkCode or linkCode == "" then
-        _G.JAF_PSLastErr = "no-code"
-        return false, "no valid private-server link code saved"
+        _G.JAF_PSLastErr = resolveErr or "no-code"
+        return false, resolveErr or "no valid private-server link code saved"
     end
     placeId = placeId or game.PlaceId
     local lastErr = nil
@@ -14975,7 +15042,7 @@ Config.AntiBeeDisco=v; SaveConfig(); if v and SharedState.ANTI_BEE_DISCO then Sh
 return Config.KickToPrivateOnSteal end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if _G.setKickToPrivateFromSettings then _G.setKickToPrivateFromSettings(v) else Config.KickToPrivateOnSteal=v; SaveConfig() end end,36)
     do
-        local info = JUI.new("TextLabel", autoS, "Size", UDim2.new(1,0,0,0), "AutomaticSize", Enum.AutomaticSize.Y, "LayoutOrder", 37, "BackgroundColor3", cs.SURF, "BackgroundTransparency", 0.4, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 13, "TextColor3", cs.TS, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "TextWrapped", true, "RichText", true, "Text", "<b>How to get your link:</b>\n1. Paste your private server link in a browser\n2. Copy the link the browser opens\n3. Paste that here and press SAVE")
+        local info = JUI.new("TextLabel", autoS, "Size", UDim2.new(1,0,0,0), "AutomaticSize", Enum.AutomaticSize.Y, "LayoutOrder", 37, "BackgroundColor3", cs.SURF, "BackgroundTransparency", 0.4, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 13, "TextColor3", cs.TS, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "TextWrapped", true, "RichText", true, "Text", "<b>How to get your link:</b>\n1. Copy your private server link (share link OK)\n2. Paste it here and press SAVE\n3. Share links are resolved automatically")
         JUI.corner(info, 6)
         _P(Instance.new("UIPadding", info), "PaddingLeft", UDim.new(0,10), "PaddingRight", UDim.new(0,10), "PaddingTop", UDim.new(0,6), "PaddingBottom", UDim.new(0,6))
         local box = JUI.new("TextBox", autoS, "Size", UDim2.new(1,0,0,36), "LayoutOrder", 38, "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TP, "PlaceholderText", "Paste your link here", "PlaceholderColor3", cs.TS, "Text", tostring(Config.PrivateServerCode or ""), "ClearTextOnFocus", false, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
@@ -14987,14 +15054,32 @@ if _G.setKickToPrivateFromSettings then _G.setKickToPrivateFromSettings(v) else 
         local function doSave() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             Config.PrivateServerCode = box.Text
             SaveConfig()
-            local linkCode = (_G.JAF_ParsePSInput and _G.JAF_ParsePSInput(box.Text)) or nil
-            local msg, col
-            if box.Text:gsub("%s","") == "" then msg, col = "SAVED (empty)", C().SH
-            elseif not linkCode then msg, col = "SAVED - couldn't read a link code", Theme.Error
-            else msg, col = "SAVED!", Theme.Success end
-            saveBtn.Text = msg; saveBtn.BackgroundColor3 = col; saveBtn.TextColor3 = _G.JAF_OnAccent(col)
-            task.delay(1.8, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
+            local raw = box.Text:gsub("%s", "")
+            if raw == "" then
+                saveBtn.Text = "SAVED (empty)"; saveBtn.BackgroundColor3 = C().SH; saveBtn.TextColor3 = _G.JAF_OnAccent(C().SH)
+                task.delay(1.8, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+                    if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
+                end)
+                return
+            end
+            saveBtn.Text = "Resolving..."; saveBtn.BackgroundColor3 = C().SH
+            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+                local linkCode, placeId, err = _G.JAF_GetPSLinkCode(box.Text)
+                local msg, col
+                if linkCode then
+                    msg, col = "SAVED! link OK", Theme.Success
+                    if placeId then Config._PSPlaceId = placeId end
+                    Config._PSResolvedLink = linkCode
+                    SaveConfig()
+                else
+                    msg, col = "SAVED - " .. tostring(err or "couldn't read link"), Theme.Error
+                end
+                if saveBtn and saveBtn.Parent then
+                    saveBtn.Text = msg; saveBtn.BackgroundColor3 = col; saveBtn.TextColor3 = _G.JAF_OnAccent(col)
+                    task.delay(2.2, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+                        if saveBtn and saveBtn.Parent then saveBtn.Text = "SAVE CODE"; saveBtn.BackgroundColor3 = Theme.Accent1; saveBtn.TextColor3 = _G.JAF_OnAccent() end
+                    end)
+                end
             end) end
         saveBtn.MouseButton1Click:Connect(doSave)
         box.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
