@@ -10724,32 +10724,122 @@ local _stealable; _stealable = function(a, me) LPH_ATTRIBUTES(ERROR_HANDLING(fal
     return a.owner ~= nil and _ownerPresent[a.owner] == true
 end
 local resolvePriorityTarget; resolvePriorityTarget = function() LPH_ATTRIBUTES(PRESET(FAST), ERROR_HANDLING(false))
+    -- Skyr0 / hub_Mata steal-target order:
+    -- 1) manual  2) priority list (by list order, highest gen, dist tie-break)
+    -- 3) brainrots (highest gen above floor)  4) nearest / highest fallbacks
     local _lpName = LocalPlayer.Name
     local _all = SharedState.AllAnimalsCache
+    if type(_all) ~= "table" or #_all == 0 then return nil end
+
+    local function _plotDist(a) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local _, hrp = getChar()
+        if not hrp or not a or not a.plot then return math.huge end
+        local plots = Workspace:FindFirstChild("Plots")
+        local plotInst = plots and plots:FindFirstChild(a.plot)
+        if not plotInst then return math.huge end
+        local pos
+        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+pos = plotInst:GetPivot().Position end)
+        if not pos then return math.huge end
+        return (hrp.Position - pos).Magnitude
+    end
+
+    -- 1) Manual override first
+    if manualTarget and _stealable(manualTarget, _lpName) then
+        return manualTarget
+    end
+    if SharedState.SelectedPetData and SharedState.SelectedPetData.animalData then
+        local sd = SharedState.SelectedPetData.animalData
+        if _stealable(sd, _lpName) then return sd end
+    end
+
+    -- 1b) Steal Nearest mode (session)
     if stealNearest then
         local _, hrp = getChar()
-        local bestEntry = nil
+        local bestEntry, bestDist = nil, math.huge
         if hrp then
-            local bestDist = math.huge
             local _hrpPos = hrp.Position
             for _, a in ipairs(_all) do
-                if _stealable(a, _lpName) then
+                if _stealable(a, _lpName) and not isMyPlot(a.plot) then
                     local part = findAdorneeGlobal(a)
-                    if part then local d = (_hrpPos - part.Position).Magnitude if d < bestDist then bestDist = d; bestEntry = a end end
-                end end
+                    if part then
+                        local d = (_hrpPos - part.Position).Magnitude
+                        if d < bestDist then bestDist, bestEntry = d, a end
+                    end
+                end
+            end
         end
         return bestEntry
     end
-    if manualTarget then return manualTarget end
-    if (Config.UsePriority ~= false) then
-        local best, bestScore = nil, math.huge
-        local _prio = _G.JAF_PrioScore
-        for _, a in ipairs(_all) do
-            if a and a.name and _stealable(a, _lpName) then local s = _prio(a) if s < bestScore then bestScore, best = s, a end end
+
+    -- 2) Priority list FIRST (walk list in order; among matches pick highest gen, then nearest)
+    if (Config.UsePriority ~= false) or (Config.AutoTPPriority ~= false) then
+        local prio = PRIORITY_LIST
+        if type(prio) == "table" then
+            for _, pName in ipairs(prio) do
+                if type(pName) == "string" and pName ~= "" then
+                    local searchName = pName:lower()
+                    local bestPet, bestDist = nil, math.huge
+                    for _, a in ipairs(_all) do
+                        if a and a.name and _stealable(a, _lpName) and not isMyPlot(a.plot) then
+                            local nm = (a.nameLower or tostring(a.name):lower())
+                            local ix = a.index and tostring(a.index):lower() or nil
+                            if nm == searchName or ix == searchName then
+                                local dist = _plotDist(a)
+                                if not bestPet then
+                                    bestPet, bestDist = a, dist
+                                else
+                                    local currentGen = a.genValue or 0
+                                    local bestGen = bestPet.genValue or 0
+                                    if currentGen > bestGen then
+                                        bestPet, bestDist = a, dist
+                                    elseif currentGen == bestGen and dist < bestDist then
+                                        bestPet, bestDist = a, dist
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bestPet then return bestPet end
+                end
+            end
         end
-        if best and bestScore < 999999 then return best end
     end
-    for _, a in ipairs(_all) do if _stealable(a, _lpName) then return a end end
+
+    -- 3) Brainrots second: highest gen above floor (min gen / 10M), distance only as tie-break
+    local _mg = 0
+    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_mg = jafMinGenThreshold and jafMinGenThreshold() or 0 end)
+    local _brainrotFloor = math.max(10000000, tonumber(_mg) or 0)
+    local bestBrainrot, bestBrainrotDist = nil, math.huge
+    for _, a in ipairs(_all) do
+        if a and _stealable(a, _lpName) and not isMyPlot(a.plot)
+           and a.genValue and a.genValue >= _brainrotFloor then
+            local dist = _plotDist(a)
+            local _bestGen = bestBrainrot and (bestBrainrot.genValue or 0) or -1
+            local _thisGen = a.genValue or 0
+            if _thisGen > _bestGen or (_thisGen == _bestGen and dist < bestBrainrotDist) then
+                bestBrainrot, bestBrainrotDist = a, dist
+            end
+        end
+    end
+    if bestBrainrot then return bestBrainrot end
+
+    -- 4) Highest gen fallback (any stealable)
+    do
+        local best, bestGen = nil, -1
+        for _, a in ipairs(_all) do
+            if _stealable(a, _lpName) and not isMyPlot(a.plot) then
+                local g = a.genValue or 0
+                if g > bestGen then best, bestGen = a, g end
+            end
+        end
+        if best then return best end
+    end
+
+    for _, a in ipairs(_all) do
+        if _stealable(a, _lpName) then return a end
+    end
     return nil
 end
 _G.JAF_ResolveBest = resolvePriorityTarget
