@@ -777,7 +777,7 @@ return Enum.KeyCode[cleaned] end)
     if ok and kc then return kc end
     return fallback
 end
-local FileName = "rosehub.json"
+local FileName = "gerathub.json"
 do
     if type(isfile) == "function" and type(readfile) == "function" and type(writefile) == "function" then
         if not isfile(FileName) then
@@ -894,7 +894,8 @@ local DefaultConfig = {
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
     CurrentTheme = "orange",
-    CustomThemeHex = "FF8C00",
+    CustomThemeHex = "FF9933",
+    AutoDestroyTurrets = false,
     ThemeImageUrl = "",
     ShowMiniActions = true,
     MiniUIPos = {X = 0.01, Y = 0.35},
@@ -1885,24 +1886,23 @@ if not Config.DefaultWhiteMigrated then
     pcall(SaveConfig)
 end
 do
-    local removedRemap = { red = "rose", orange = "dawg", green = "ocean", gold = "white", preto = "midnight", pink = "rose" }
+    local removedRemap = { red = "rose", green = "ocean", gold = "white", preto = "midnight", pink = "rose" }
     local remapped = removedRemap[Config.CurrentTheme]
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
--- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
+-- FORCE the orange Gerat Hub palette over saved/custom themes. Runs before any panel is built.
 do
-    Theme.Background       = Color3.fromRGB(20, 20, 20)
-    Theme.Surface          = Color3.fromRGB(34, 34, 34)
-    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(255, 140, 0)
-    Theme.Accent2          = Color3.fromRGB(230, 105, 0)
-    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
-    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(255, 165, 55)
-    Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(110, 65, 25)
+    Theme.Background       = Color3.fromRGB(92, 38, 0)
+    Theme.Surface          = Color3.fromRGB(125, 52, 0)
+    Theme.SurfaceHighlight = Color3.fromRGB(165, 72, 0)
+    Theme.Accent1          = Color3.fromRGB(255, 153, 51)
+    Theme.Accent2          = Color3.fromRGB(255, 120, 20)
+    Theme.TextPrimary      = Color3.fromRGB(255, 248, 240)
+    Theme.TextSecondary    = Color3.fromRGB(255, 205, 155)
+    Theme.Success          = Color3.fromRGB(255, 185, 80)
+    Theme.Error            = Color3.fromRGB(255, 130, 90)
+    Theme.Stroke           = Color3.fromRGB(255, 145, 45)
     _G.JAF_ForceMono = false
     -- stop later image/custom theming from re-tinting
     -- Saved legacy theme keys are retained; the Rose appearance editor owns this build.
@@ -6091,11 +6091,14 @@ _G.JAF_Retarget = function(entry) LPH_ATTRIBUTES(ERROR_HANDLING(false))
         if manualTarget ~= entry then return end
         if _G.JAF_TpActive then return end
         local inBase = (type(_G.JAF_CurrentBase) == "function") and _G.JAF_CurrentBase() or nil
-        if inBase ~= nil and inBase == entry.plot then
+        if type(_G.JAF_HopToPet) == "function" then
             local okH, hopped = pcall(_G.JAF_HopToPet, entry)
             if okH and hopped then return end
         end
-        if _G.tpToBestBrainrot then pcall(_G.tpToBestBrainrot) end
+        -- Do not fall back to tpToBestBrainrot here: that function deliberately
+        -- selects the highest-priority item and overrides the user's chosen target.
+        manualTarget = entry
+        SharedState.SetManualTarget(entry)
     end)
     return true
 end
@@ -12092,7 +12095,7 @@ do
     local genLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 82, 0, 16), "Position", UDim2.new(1, -90, 0, 5), "BackgroundTransparency", 1, "Text", "", "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", Color3.fromRGB(120,235,150), "TextXAlignment", Enum.TextXAlignment.Right)
     local pctLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 150, 0, 13), "Position", UDim2.new(0, 12, 0, 24), "BackgroundTransparency", 1, "Text", "0%", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Left)
     local secLbl = JUI.new("TextLabel", pill, "Size", UDim2.new(0, 110, 0, 13), "Position", UDim2.new(1, -122, 0, 24), "BackgroundTransparency", 1, "Text", "", "Font", Enum.Font.GothamMedium, "TextSize", 12, "TextColor3", Color3.fromRGB(210,210,215), "TextXAlignment", Enum.TextXAlignment.Right)
-    local track = JUI.new("Frame", pill, "Size", UDim2.new(1,-32,0,3), "Position", UDim2.new(0,16,1,-10), "BackgroundColor3", Color3.fromRGB(30,14,50), "BorderSizePixel", 0)
+    local track = JUI.new("Frame", pill, "Size", UDim2.new(1,-32,0,3), "Position", UDim2.new(0,16,1,-10), "BackgroundColor3", Color3.fromRGB(105,45,0), "BorderSizePixel", 0)
     Instance.new("UICorner", track).CornerRadius = UDim.new(1,0)
     local fill = JUI.new("Frame", track, "Size", UDim2.new(0,0,1,0), "BackgroundColor3", Theme.Accent1, "BorderSizePixel", 0)
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
@@ -12735,26 +12738,18 @@ local RoseInstantReset = (function()
             humanoid.PlatformStand = true
             humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
         end) end
-        local function pulse()
-            if not active or not root.Parent or LocalPlayer.Character ~= character then return false end
-            return pcall(function()
-                root.AssemblyAngularVelocity = Vector3.zero
-                root.AssemblyLinearVelocity = Vector3.new(0,1000000,0)
-            end)
-        end
-        -- First pulse is synchronous, then reinforce every physics step for 1.5s.
-        local ok = pulse()
-        if ok then task.spawn(function()
-            local elapsed = 0
-            while active and elapsed < 1.5 do
-                elapsed += RunService.PreSimulation:Wait()
-                if not pulse() then break end
+        -- Use an actual character death request; the old upward-velocity fling
+        -- often left the character alive, so the button appeared to do nothing.
+        local ok = pcall(function()
+            if humanoid and humanoid.Parent then
+                humanoid.Health = 0
+                humanoid:ChangeState(Enum.HumanoidStateType.Dead)
             end
-        end) end
-        -- If the server rejects the reset, don't leave the same living body limp.
-        task.delay(2, function()
+            if character.Parent then character:BreakJoints() end
+        end)
+        task.delay(1.5, function()
             if active and LocalPlayer.Character == character and humanoid and humanoid.Parent and humanoid.Health > 0 then
-                humanoid.PlatformStand = previousStand
+                pcall(function() humanoid.PlatformStand = previousStand end)
             end
         end)
         return ok
@@ -12766,12 +12761,9 @@ local RoseInstantReset = (function()
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
         local root = character and character:FindFirstChild("HumanoidRootPart")
         if not character or not humanoid or not root or not root:IsA("BasePart") then
-            queuedUntil = os.clock()+15
-            return true
+            return false
         end
         if humanoid.Health <= 0 then
-            flingBody(character)
-            queuedUntil = os.clock()+15
             return true
         end
         busy = true
@@ -17562,7 +17554,11 @@ started = _G.JAF_DropBrainrot() end)
             function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 return _G.JAF_AutoTurretActive and _G.JAF_AutoTurretActive() end,
             function(refresh) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                if _G.JAF_ToggleAutoTurret then pcall(_G.JAF_ToggleAutoTurret) end
+                if _G.JAF_ToggleAutoTurret then
+                    local ok, state = pcall(_G.JAF_ToggleAutoTurret)
+                    if ok then Config.AutoDestroyTurrets = state == true end
+                end
+                pcall(SaveConfig)
                 task.defer(refresh)
             end) end
     RoseUI.mini(panel,cont)
@@ -18677,7 +18673,7 @@ task.wait(0.3); OResetCharAnims(ch) end)
                     for _ = 1, 6 do collectgarbage("step", 0) end
                 end end) end end) end)
 ;(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-    local autoTurretOn = false
+    local autoTurretOn = Config.AutoDestroyTurrets == true
     local function adt_getChar() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
         local c = LocalPlayer.Character
         return c, c and c:FindFirstChild("HumanoidRootPart"), c and c:FindFirstChildOfClass("Humanoid")
@@ -18820,6 +18816,8 @@ task.wait(0.3); OResetCharAnims(ch) end)
 return autoTurretOn == true end
     function _G.JAF_ToggleAutoTurret() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         autoTurretOn = not autoTurretOn
+        Config.AutoDestroyTurrets = autoTurretOn
+        pcall(SaveConfig)
         if autoTurretOn then adt_lastDeep = 0 end
         return autoTurretOn
     end
