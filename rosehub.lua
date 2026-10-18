@@ -13100,7 +13100,9 @@ c:Destroy() end)
 				end end
 			clone.Parent = character
 			clone.Anchored = false
+			clone.CanCollide = true
 			oldRoot.Parent = Workspace.CurrentCamera
+			oldRoot.CanCollide = false
 			clone.CFrame = oldRoot.CFrame; character.PrimaryPart = clone
 			character.Parent = Workspace
 			for _, v in pairs(character:GetDescendants()) do
@@ -13164,15 +13166,12 @@ t:Stop() end) end
 			animTrack.Stopped:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 			task.delay(0, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-				-- freeze on the flat/lying frame
-				animTrack.TimePosition = 0.7
-				animTrack:AdjustSpeed(0)
-				task.delay(0.05, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-					if animTrack then
-						animTrack.TimePosition = 0.7
-						animTrack:AdjustSpeed(0)
-					end
-				end)
+				-- XenHub: freeze flat frame (InvisAnimFrame, default 0.8)
+				local fr = tonumber(_G.InvisAnimFrame) or 0.8
+				if animTrack then
+					animTrack.TimePosition = fr
+					animTrack:AdjustSpeed(0)
+				end
 			end) end end
 	local _invisLocalConn = nil
 	local _invisLocalOn = false
@@ -13219,63 +13218,34 @@ if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 		end
 	end
 	local function _buryBodyFlat(character) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-		-- visual only: body looks flat on ground + invisible, movement stays NORMAL
+		-- XenHub-style: only hide visuals. NEVER touch HipHeight / Physics / Root attachment.
+		-- Movement stays on the clone HRP exactly like a normal character.
 		if not character then return end
-		local hum = character:FindFirstChildOfClass("Humanoid")
 		local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+		local hum = character:FindFirstChildOfClass("Humanoid")
 		if hum then
-			-- keep normal locomotion (do NOT Physics / do NOT lock AutoRotate)
 			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-hum.AutoRotate = true end)
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if hum.PlatformStand then hum.PlatformStand = false end end)
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if hum.Sit then hum.Sit = false end end)
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if hum.WalkSpeed <= 0 then hum.WalkSpeed = 16 end end)
-			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-				local st = hum:GetState()
-				if st == Enum.HumanoidStateType.Physics or st == Enum.HumanoidStateType.Ragdoll
-					or st == Enum.HumanoidStateType.Seated or st == Enum.HumanoidStateType.PlatformStanding then
-					hum:ChangeState(Enum.HumanoidStateType.Running)
-				end
+				hum.AutoRotate = true
+				hum.PlatformStand = false
+				hum.Sit = false
+				if hum.WalkSpeed <= 0 then hum.WalkSpeed = 16 end
 			end)
-		end
-		-- visual: lay rig flat on floor via Root attachment (does not block WASD)
-		local drop = tonumber(_G.JAF_InvisBuryDepth) or 0.15
-		local lay = CFrame.Angles(math.rad(90), 0, 0) * CFrame.new(0, -drop, 0)
-		if _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase then
-			_invisPoseAtt.CFrame = _invisPoseBase * lay
-		else
-			local a0 = root and root:FindFirstChild("RootRigAttachment")
-			if a0 then
-				if not a0:GetAttribute("_jafInvisBaseCF") then
-					a0:SetAttribute("_jafInvisBaseCF", true)
-					_G._jafInvisAttBase = a0.CFrame
-				end
-				local base = _G._jafInvisAttBase or a0.CFrame
-				a0.CFrame = base * lay
-			end
-		end
-		-- full invisible body/legs/head; HRP stays collidable for normal walking
-		for _, d in ipairs(character:GetDescendants()) do
-			if d:IsA("BasePart") then
-				d.LocalTransparencyModifier = 1
-				d.Transparency = 1
-				if d.Name ~= "HumanoidRootPart" then
-					d.CanCollide = false
-				else
-					d.CanCollide = true
-					d.Anchored = false
-				end
-			elseif d:IsA("Decal") or d:IsA("Texture") then
-				d.LocalTransparencyModifier = 1
-				d.Transparency = 1
-			end
 		end
 		if root then
 			pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 root.Anchored = false; root.CanCollide = true end)
+		end
+		if clone then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+clone.CanCollide = true; clone.Anchored = false end) end
+		for _, d in ipairs(character:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 1
+				if d.Name ~= "HumanoidRootPart" and d ~= root and d ~= clone then
+					d.CanCollide = false
+				end
+			elseif d:IsA("Decal") or d:IsA("Texture") then
+				d.LocalTransparencyModifier = 1
+			end
 		end
 	end
 	local function _setLocalCharInvis(on) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -13474,10 +13444,14 @@ if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 					local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
 					if root then
 							if _G.JAF_InvisRagdollGuard ~= false then pcall(_invisRagGuard, character, _invHum) end
-							-- keep body lying flat on the ground (steso a terra)
-							if _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase then
-								local drop = tonumber(_G.JAF_InvisBuryDepth) or 0.15
-								_invisPoseAtt.CFrame = _invisPoseBase * CFrame.Angles(math.rad(90), 0, 0) * CFrame.new(0, -drop, 0)
+							-- XenHub: keep clone collidable so you walk normally
+							if clone then clone.CanCollide = true; clone.Anchored = false end
+							if root then root.CanCollide = true; root.Anchored = false end
+							if _invHum then
+								if _invHum.PlatformStand then _invHum.PlatformStand = false end
+								if _invHum.Sit then _invHum.Sit = false end
+								if not _invHum.AutoRotate then _invHum.AutoRotate = true end
+								if _invHum.WalkSpeed <= 0 then _invHum.WalkSpeed = 16 end
 							end
 							if skipFrames > 0 then skipFrames = skipFrames - 1; lastSetPosition = nil
 						elseif lastSetPosition then
