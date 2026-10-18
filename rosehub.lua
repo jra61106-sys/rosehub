@@ -13169,26 +13169,55 @@ if animPlaying and _G.invisibleStealEnabled then animationTrickery() end end)
 if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			end) end end
 	local _invisLocalConn = nil
+	local _invisLocalOn = false
+	local function _hideOneLocal(d, on) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+		if not d then return end
+		if d:IsA("BasePart") then
+			d.LocalTransparencyModifier = on and 1 or 0
+		elseif d:IsA("Decal") or d:IsA("Texture") then
+			d.LocalTransparencyModifier = on and 1 or 0
+		elseif d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") or d:IsA("Fire") or d:IsA("Smoke") or d:IsA("Sparkles") then
+			if on then
+				if d:GetAttribute("_jafInvisWasOn") == nil then d:SetAttribute("_jafInvisWasOn", d.Enabled and true or false) end
+				d.Enabled = false
+			else
+				local was = d:GetAttribute("_jafInvisWasOn")
+				if was ~= nil then d.Enabled = was == true; d:SetAttribute("_jafInvisWasOn", nil) end
+			end
+		end
+	end
 	local function _setLocalCharInvis(on) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+		_invisLocalOn = on == true
 		local character = LocalPlayer.Character
 		if not character then return end
-		local mod = on and 1 or 0
 		pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-			for _, d in ipairs(character:GetDescendants()) do
-				if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
-					d.LocalTransparencyModifier = mod
-				end
+			for _, d in ipairs(character:GetDescendants()) do _hideOneLocal(d, on) end
+			-- also hide real root parked in camera (oldRoot)
+			if oldRoot and oldRoot.Parent then
+				_hideOneLocal(oldRoot, on)
+				for _, d in ipairs(oldRoot:GetDescendants()) do _hideOneLocal(d, on) end
+			end
+			if clone and clone.Parent then
+				_hideOneLocal(clone, on)
+				for _, d in ipairs(clone:GetDescendants()) do _hideOneLocal(d, on) end
 			end
 		end)
 		if _invisLocalConn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 _invisLocalConn:Disconnect() end); _invisLocalConn = nil end
-		if on then
+		if on and character then
 			_invisLocalConn = character.DescendantAdded:Connect(function(d) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-				if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
-					pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-d.LocalTransparencyModifier = 1 end)
-				end
+				if _invisLocalOn then pcall(_hideOneLocal, d, true) end
 			end)
+		end
+	end
+	local function _reapplyLocalInvis() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+		if not _invisLocalOn then return end
+		local character = LocalPlayer.Character
+		if not character then return end
+		for _, d in ipairs(character:GetDescendants()) do
+			if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
+				if d.LocalTransparencyModifier < 1 then d.LocalTransparencyModifier = 1 end
+			end
 		end
 	end
 	local function turnOff() LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -13297,6 +13326,7 @@ if _fhum.Sit then _fhum.Sit = false end end)
 if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 				end end
 				if _G.JAF_InvisFold ~= false then task.wait(0.05); animationTrickery() end
+			pcall(_setLocalCharInvis, true)
 			task.defer(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
 				if _G.resetBrainrotBeam then pcall(_G.resetBrainrotBeam) end
 				if _G.resetPlotBeam then pcall(_G.resetPlotBeam) end
@@ -13321,6 +13351,7 @@ if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 				for _, ac in ipairs(invisRagdollACs) do if ac.Parent and not ac.Enabled then ac.Enabled = true end end
 			end
 			connection = RunService.PreSimulation:Connect(function(_psDt) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+				pcall(_reapplyLocalInvis)
 				local _invHum = character and character:FindFirstChildOfClass("Humanoid")
 				if _invHum and _invHum.Health > 0 and oldRoot then
 					local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
@@ -14839,7 +14870,10 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 580, 0, 430), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 60, 0.5, -215), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 480, 0, 360), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -180), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    panel:SetAttribute("JAFBaseScale", 0.88)
+    pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.88; us.Parent = panel end)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
