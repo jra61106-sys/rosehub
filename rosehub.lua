@@ -13170,12 +13170,30 @@ if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			end) end end
 	local _invisLocalConn = nil
 	local _invisLocalOn = false
+	local _invisSavedHip = nil
 	local function _hideOneLocal(d, on) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 		if not d then return end
 		if d:IsA("BasePart") then
 			d.LocalTransparencyModifier = on and 1 or 0
+			-- full client hide (body + legs + head + accessories)
+			if on then
+				if d:GetAttribute("_jafInvisTrans") == nil then d:SetAttribute("_jafInvisTrans", d.Transparency) end
+				d.Transparency = 1
+				d.CanCollide = false
+			else
+				local t = d:GetAttribute("_jafInvisTrans")
+				if t ~= nil then d.Transparency = t; d:SetAttribute("_jafInvisTrans", nil) end
+				d.LocalTransparencyModifier = 0
+			end
 		elseif d:IsA("Decal") or d:IsA("Texture") then
 			d.LocalTransparencyModifier = on and 1 or 0
+			if on then
+				if d:GetAttribute("_jafInvisTrans") == nil then d:SetAttribute("_jafInvisTrans", d.Transparency) end
+				d.Transparency = 1
+			else
+				local t = d:GetAttribute("_jafInvisTrans")
+				if t ~= nil then d.Transparency = t; d:SetAttribute("_jafInvisTrans", nil) end
+			end
 		elseif d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") or d:IsA("Fire") or d:IsA("Smoke") or d:IsA("Sparkles") then
 			if on then
 				if d:GetAttribute("_jafInvisWasOn") == nil then d:SetAttribute("_jafInvisWasOn", d.Enabled and true or false) end
@@ -13183,6 +13201,50 @@ if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			else
 				local was = d:GetAttribute("_jafInvisWasOn")
 				if was ~= nil then d.Enabled = was == true; d:SetAttribute("_jafInvisWasOn", nil) end
+			end
+		elseif d:IsA("LayerCollector") or d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+			if on then
+				if d:GetAttribute("_jafInvisGui") == nil then d:SetAttribute("_jafInvisGui", d.Enabled and true or false) end
+				d.Enabled = false
+			else
+				local was = d:GetAttribute("_jafInvisGui")
+				if was ~= nil then d.Enabled = was == true; d:SetAttribute("_jafInvisGui", nil) end
+			end
+		end
+	end
+	local function _buryBodyFlat(character) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+		-- flatten + sink the whole visual body under the HRP so nothing sticks out
+		if not character then return end
+		local hum = character:FindFirstChildOfClass("Humanoid")
+		local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+		if hum then
+			if _invisSavedHip == nil then _invisSavedHip = hum.HipHeight end
+			hum.HipHeight = -3
+		end
+		-- bury RootRigAttachment so the R15 torso/legs sit deep underground
+		local bury = tonumber(_G.JAF_InvisBuryDepth) or 12
+		if _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase then
+			_invisPoseAtt.CFrame = _invisPoseBase * CFrame.new(0, -bury, 0)
+		else
+			local a0 = root and root:FindFirstChild("RootRigAttachment")
+			if a0 then
+				if not a0:GetAttribute("_jafInvisBaseCF") then
+					a0:SetAttribute("_jafInvisBaseCF", true)
+					_G._jafInvisAttBase = a0.CFrame
+				end
+				local base = _G._jafInvisAttBase or a0.CFrame
+				a0.CFrame = base * CFrame.new(0, -bury, 0)
+			end
+		end
+		-- force every non-root part fully invisible + no collide
+		for _, d in ipairs(character:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 1
+				d.Transparency = 1
+				if d.Name ~= "HumanoidRootPart" then d.CanCollide = false end
+			elseif d:IsA("Decal") or d:IsA("Texture") then
+				d.LocalTransparencyModifier = 1
+				d.Transparency = 1
 			end
 		end
 	end
@@ -13192,7 +13254,11 @@ if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 		if not character then return end
 		pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 			for _, d in ipairs(character:GetDescendants()) do _hideOneLocal(d, on) end
-			-- also hide real root parked in camera (oldRoot)
+			for _, acc in ipairs(character:GetChildren()) do
+				if acc:IsA("Accessory") or acc:IsA("Hat") or acc:IsA("Tool") then
+					for _, d in ipairs(acc:GetDescendants()) do _hideOneLocal(d, on) end
+				end
+			end
 			if oldRoot and oldRoot.Parent then
 				_hideOneLocal(oldRoot, on)
 				for _, d in ipairs(oldRoot:GetDescendants()) do _hideOneLocal(d, on) end
@@ -13200,6 +13266,14 @@ if animTrack then animTrack:AdjustSpeed(math.huge) end end)
 			if clone and clone.Parent then
 				_hideOneLocal(clone, on)
 				for _, d in ipairs(clone:GetDescendants()) do _hideOneLocal(d, on) end
+			end
+			if on then
+				_buryBodyFlat(character)
+			else
+				local hum = character:FindFirstChildOfClass("Humanoid")
+				if hum and _invisSavedHip ~= nil then hum.HipHeight = _invisSavedHip; _invisSavedHip = nil end
+				if _invisPoseAtt and _invisPoseBase then _invisPoseAtt.CFrame = _invisPoseBase end
+				_G._jafInvisAttBase = nil
 			end
 		end)
 		if _invisLocalConn then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -13214,11 +13288,7 @@ _invisLocalConn:Disconnect() end); _invisLocalConn = nil end
 		if not _invisLocalOn then return end
 		local character = LocalPlayer.Character
 		if not character then return end
-		for _, d in ipairs(character:GetDescendants()) do
-			if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
-				if d.LocalTransparencyModifier < 1 then d.LocalTransparencyModifier = 1 end
-			end
-		end
+		_buryBodyFlat(character)
 	end
 	local function turnOff() LPH_ATTRIBUTES(ERROR_HANDLING(false))
 		pcall(_setLocalCharInvis, false)
@@ -13357,14 +13427,11 @@ if _fhum.WalkSpeed <= 0 then _fhum.WalkSpeed = 16 end end)
 					local root = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
 					if root then
 							if _G.JAF_InvisRagdollGuard ~= false then pcall(_invisRagGuard, character, _invHum) end
-							if _G.JAF_InvisPoseFix ~= false and _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase and _invisPoseRestDY then
-								local _plt = character:FindFirstChild("LowerTorso")
-								if _plt then
-									local _appl = _invisPoseBase.Position.Y - _invisPoseAtt.CFrame.Position.Y
-									local _lift = (_plt.Position.Y - root.Position.Y) + _appl - _invisPoseRestDY
-									_lift = math.clamp(_lift, 0, tonumber(_G.JAF_InvisPoseMaxLift) or 8)
-									if math.abs(_lift - _appl) > 0.01 then _invisPoseAtt.CFrame = _invisPoseBase * CFrame.new(0, -_lift, 0) end
-								end end
+							-- keep body flat + buried underground (no lift)
+							if _invisPoseAtt and _invisPoseAtt.Parent and _invisPoseBase then
+								local bury = tonumber(_G.JAF_InvisBuryDepth) or 12
+								_invisPoseAtt.CFrame = _invisPoseBase * CFrame.new(0, -bury, 0)
+							end
 							if skipFrames > 0 then skipFrames = skipFrames - 1; lastSetPosition = nil
 						elseif lastSetPosition then
 							local currentPos = oldRoot.Position
