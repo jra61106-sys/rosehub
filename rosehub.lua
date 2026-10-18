@@ -898,7 +898,7 @@ local DefaultConfig = {
     AutoResetOnBalloon = false,
     AutoStealSpeed = false,
     HideAdminCooldowns = false,
-    CurrentTheme = "white",
+    CurrentTheme = "orange",
     CustomThemeHex = "FFC800",
     ThemeImageUrl = "",
     ShowMiniActions = true,
@@ -1235,14 +1235,7 @@ local _THEME_FIELDS = {"Background","Surface","SurfaceHighlight","Accent1","Acce
 THEMES = {}
 do
     local _PAL = {
-        cyan     = {8,18,28, 10,25,40, 15,45,65, 50,200,255, 0,150,210, 240,240,240, 170,210,230, 50,200,255, 210,90,90},
-        midnight = {10,12,24, 15,18,36, 26,30,60, 125,135,255, 85,95,220, 238,240,250, 180,188,225, 125,135,255, 210,90,90},
-        ice      = {10,18,26, 14,26,38, 22,44,62, 150,220,255, 95,180,225, 240,248,252, 180,210,228, 150,220,255, 210,90,90},
-        rose     = {26,10,16, 38,14,24, 64,22,40, 255,120,160, 215,75,120, 250,240,244, 230,180,200, 255,120,160, 255,95,95},
-        ocean    = {6,14,26, 8,22,42, 14,40,72, 60,130,255, 30,90,210, 238,242,250, 175,195,230, 60,130,255, 210,90,90},
-        white    = {18,18,22, 28,28,34, 48,48,56, 235,235,245, 170,170,185, 245,245,248, 185,185,195, 235,235,245, 210,90,90},
-        dawg     = {20,13,11, 34,19,17, 60,26,24, 196,42,38, 142,24,22, 246,236,232, 226,184,174, 196,42,38, 255,95,95},
-        custom   = {18,8,38, 25,10,55, 45,15,85, 180,50,255, 130,0,220, 240,240,240, 200,170,230, 180,50,255, 210,90,90},
+        orange = {20,20,20, 34,34,34, 48,38,28, 255,145,35, 220,105,20, 245,245,245, 175,175,175, 255,145,35, 205,85,55},
     }
     for name, rgb in pairs(_PAL) do
         local t = {}
@@ -1881,31 +1874,30 @@ pcall(jafSetupGifAnimation, _G.JAF_GifUrl) end)
 end
 if not Config.DefaultWhiteMigrated then
     Config.DefaultWhiteMigrated = true
-    if Config.CurrentTheme == nil or Config.CurrentTheme == "preto" then Config.CurrentTheme = "white" end
+    if Config.CurrentTheme == nil or Config.CurrentTheme ~= "orange" then Config.CurrentTheme = "orange" end
     pcall(SaveConfig)
 end
 do
-    local removedRemap = { red = "rose", orange = "dawg", green = "ocean", gold = "white", preto = "midnight", pink = "rose" }
+    local removedRemap = {}
     local remapped = removedRemap[Config.CurrentTheme]
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
-if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
--- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
+if THEMES and THEMES.orange then for k, v in pairs(THEMES.orange) do Theme[k] = v end end
+-- Fixed orange accent palette: no selectable UI themes or custom image themes.
 do
     Theme.Background       = Color3.fromRGB(20, 20, 20)
     Theme.Surface          = Color3.fromRGB(34, 34, 34)
-    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
-    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
-    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
-    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(235, 235, 235)
-    Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(50, 50, 50)
-    _G.JAF_ForceMono = true
-    -- stop later image/custom theming from re-tinting
-    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
+    Theme.SurfaceHighlight = Color3.fromRGB(48, 38, 28)
+    Theme.Accent1          = Color3.fromRGB(255, 145, 35)
+    Theme.Accent2          = Color3.fromRGB(220, 105, 20)
+    Theme.TextPrimary      = Color3.fromRGB(245, 245, 245)
+    Theme.TextSecondary    = Color3.fromRGB(175, 175, 175)
+    Theme.Success          = Color3.fromRGB(255, 145, 35)
+    Theme.Error            = Color3.fromRGB(205, 85, 55)
+    Theme.Stroke           = Color3.fromRGB(130, 68, 22)
+    _G.JAF_ForceMono = false
+    _G.JAF_ForceOrange = true
+    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "orange" end
 end
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
@@ -1938,7 +1930,8 @@ function jafUnifyPanelStyle() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if frame then pcall(jafStyleOnePanel, frame) end
         end end end
 applyTheme = function(themeName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local t = THEMES[themeName]
+    themeName = "orange"
+    local t = THEMES["orange"]
     if not t then return end
     local colorMap = {}
     for k, oldColor in pairs(Theme) do if t[k] then colorMap[oldColor] = t[k] end end
@@ -11729,6 +11722,7 @@ do
     local _noTgtLatched = false
     local _WHITE = Color3.fromRGB(255,255,255)
     local _lastTgt = nil
+    local _lastTgtName = nil
 local _readyLatched = false
 local _readyDur = nil
 local _idleT = 0
@@ -11744,14 +11738,17 @@ local _idleT = 0
                 nameLbl.Text = "No Target"; nameLbl.TextColor3 = Color3.fromRGB(150,150,158)
                 genLbl.Text = ""; pctLbl.Text = ""; secLbl.Text = ""
                 _lastTgt = nil
+                _lastTgtName = nil
                 _readyLatched = false
             end
             return
         end
         _noTgtLatched = false
-        if _t ~= _lastTgt then
+        local _targetName = tostring(_t.name or _t.displayName or _t.Name or "Brainrot")
+        if _t ~= _lastTgt or _targetName ~= _lastTgtName then
             _lastTgt = _t
-            nameLbl.Text = _t.name or "Brainrot"
+            _lastTgtName = _targetName
+            nameLbl.Text = _targetName
             nameLbl.TextColor3 = _mutColorOf(_t) or _WHITE
             genLbl.Text = _t.genText or (_t.gen and ("$"..tostring(_t.gen).."/s")) or ""
         end
@@ -15084,415 +15081,15 @@ return "TP Spots" end, {f1row, f2row, f2bRow}, true)
     end)
     end)
     _addTab("uih", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local uhS = tScrolls2["uih"]
-    makeSec(uhS,"HIDE UIs",1)
-    for _, t in ipairs({
-        {"Hide Admin Panel",        "HideAdminPanel",      11, "XiAdminPanel"},
-        {"Hide Auto Steal",         "HideAutoSteal",       12, "AutoStealUI"},
-        {"Hide Best Brainrot Bar",  "HideWalkingBest",     18, "JustAFanWalkingBestBar"},
-    }) do
-        local key, gui = t[2], t[4]
-        makeToggle(uhS, t[1], function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config[key] end, function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            Config[key]=v; SaveConfig(); local g=hubFind(gui); if g then g.Enabled=not v end
-        end, t[3])
-    end
-    makeToggle(uhS,"Show Mini UI",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.ShowMiniActions end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.ShowMiniActions=v; SaveConfig(); local g=hubFind("JustAFanMiniActions"); if g then local mp=g:FindFirstChild("MiniPanel"); if mp then mp.Visible=v end end end,21)
-    _cfgTog(uhS,"Lock all GUI","UILocked",22)
-    makeSec(uhS,"MOBILE",90)
-    _segRow(uhS, 91, "Mobile UI",
-        {{t="AUTO",v="auto"},{t="ON",v="on"},{t="OFF",v="off"}},
-        function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.MobileMode or "auto" end,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.MobileMode = v; task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-pcall(_G.JAF_MobileRefresh) end) end)
-    _segRow(uhS, 92, "Hub Button",
-        {{t="AUTO",v="auto"},{t="ON",v="on"},{t="OFF",v="off"}},
-        function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.HubButtonMode or "auto" end,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.HubButtonMode = v; if buildMobileBarUI then pcall(buildMobileBarUI) end end)
-    makeToggle(uhS,"Mobile Full-Screen Sheet",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.MobileSheet ~= false end,function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        Config.MobileSheet=v; SaveConfig(); task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-pcall(_G.JAF_MobileRefresh) end)
-    end,93,true)
-    makeSec(uhS,"PANEL SIZE",25)
-    _sliderRow(uhS, 26, "UI Scale", 0.5, 1.5, 0.05, false, Config.UIScale or 1,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.UIScale = v; if _G.JAF_ApplyUIScale then _G.JAF_ApplyUIScale(v) end end,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return string.format("%.2fx", v) end)
-    SaveConfig()
-    end)
-    _addTab("cfgio", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local cioS = tScrolls2["cfgio"]
+        local tS = tScrolls2["uih"]
         local cs = C()
-        makeSec(cioS, "SHARE CONFIG", 1)
-        local info = JUI.new("Frame", cioS, "Size", UDim2.new(1, 0, 0, 54), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 2)
-        info:SetAttribute("JAFNoSearch", true)
-        JUI.corner(info, 8)
-        _P(Instance.new("UIPadding", info), "PaddingLeft", UDim.new(0, 10), "PaddingRight", UDim.new(0, 10), "PaddingTop", UDim.new(0, 6), "PaddingBottom", UDim.new(0, 6))
-        JUI.new("TextLabel", info, "Size", UDim2.new(1, 0, 1, 0), "BackgroundTransparency", 1, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TP, "TextWrapped", true, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Center, "Text", "Export copies all your settings as a code. Share it -- others paste it below and Import to use your exact setup.")
-        local function cfgBtn(label, order) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local b = JUI.new("TextButton", cioS, "Size", UDim2.new(1, 0, 0, 40), "LayoutOrder", order, "BackgroundColor3", cs.SURF, "AutoButtonColor", false, "BorderSizePixel", 0, "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", cs.TP, "Text", label)
-            JUI.corner(b, 8)
-            return b
-        end
-        local exportBtn = cfgBtn("Export My Config", 3)
-        exportBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local ok, json = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                local toSave = {}
-                for k, v in pairs(Config) do toSave[k] = v end
-                toSave.ProximityAP = false
-                toSave.StealRadius = nil
-                toSave.PrivateServerCode = nil
-                return HttpService:JSONEncode(toSave)
-            end)
-            if not ok or not json then return end
-            local copied = false
-            if setclipboard then pcall(setclipboard, json); copied = true end
-            if writefile then pcall(writefile, "rosehub_config_export.json", json) end
-        end)
-        JUI.new("TextLabel", cioS, "Size", UDim2.new(1, 0, 0, 16), "BackgroundTransparency", 1, "LayoutOrder", 4, "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Left, "Text", "PASTE A CONFIG CODE")
-        local boxRow = JUI.new("Frame", cioS, "Size", UDim2.new(1, 0, 0, 92), "BackgroundColor3", cs.SH, "BorderSizePixel", 0, "LayoutOrder", 5)
-        JUI.corner(boxRow, 8)
-        JUI.stroke(boxRow, Theme.Accent2, 1, 0.5)
-        _P(Instance.new("UIPadding", boxRow), "PaddingLeft", UDim.new(0, 8), "PaddingRight", UDim.new(0, 8), "PaddingTop", UDim.new(0, 6), "PaddingBottom", UDim.new(0, 6))
-        local importBox = JUI.new("TextBox", boxRow, "Size", UDim2.new(1, 0, 1, 0), "BackgroundTransparency", 1, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TP, "PlaceholderText", "Paste a config code here...", "PlaceholderColor3", cs.TS, "Text", "", "ClearTextOnFocus", false, "MultiLine", true, "TextWrapped", true, "ClipsDescendants", true, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top)
-        local importBtn = cfgBtn("Import Config", 6)
-        importBtn.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local raw = importBox.Text
-            if (not raw or raw == "") and getclipboard then
-                local okc, c = pcall(getclipboard); if okc and type(c) == "string" then raw = c end
-            end
-            if not raw or raw == "" then return end
-            local ok, decoded = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return HttpService:JSONDecode(raw) end)
-            if not ok or type(decoded) ~= "table" then return end
-            decoded.PrivateServerCode = nil
-            local n = 0
-            for k, v in pairs(decoded) do Config[k] = v; n = n + 1 end
-            _P(Config, "StealRadius", nil, "AutoTPPriority", true, "ProximityAP", false)
-            Config.OptimizeFloorSmooth = true
-            Config.OptimizeStripMeshTextures = true
-            SaveConfig()
-            importBox.Text = ""
-        end)
-        JUI.new("TextLabel", cioS, "Size", UDim2.new(1, 0, 0, 16), "BackgroundTransparency", 1, "LayoutOrder", 7, "Font", Enum.Font.Gotham, "TextSize", 10, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left, "Text", "Rejoin after importing so every setting takes effect.")
+        makeSec(tS, "MAIN COLOR", 100)
+        local orangeRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,42), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 101)
+        JUI.corner(orangeRow, 7)
+        local orangeDot = JUI.new("Frame", orangeRow, "Size", UDim2.new(0,14,0,14), "Position", UDim2.new(0,12,0.5,-7), "BackgroundColor3", Color3.fromRGB(255,145,35), "BorderSizePixel", 0)
+        JUI.round(orangeDot)
+        JUI.new("TextLabel", orangeRow, "Size", UDim2.new(1,-42,1,0), "Position", UDim2.new(0,36,0,0), "BackgroundTransparency", 1, "Text", "Orange", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
     end)
-    _addTab("autobuy", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local abS = tScrolls2["autobuy"]
-        local cs = C()
-        makeSec(abS, "CARPET AUTO BUY", 8)
-        makeToggle(abS, "TP To Carpet Brainrots",
-            function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.CarpetAutoBuy end,
-            function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                if _G.JAF_ToggleCarpetBuy then _G.JAF_ToggleCarpetBuy(v) end
-                Config.CarpetAutoBuy = v; SaveConfig()
-            end, 9, true)
-        do
-            local r = JUI.new("Frame", abS, "Size", UDim2.new(1, 0, 0, 36), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 10)
-            JUI.corner(r, 7)
-            JUI.new("TextLabel", r, "Size", UDim2.new(0.6, 0, 0, 16), "Position", UDim2.new(0, 10, 0, 10), "BackgroundTransparency", 1, "Text", "Carpet Min Gen", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-            local tb = JUI.new("TextBox", r, "Size", UDim2.new(0, 110, 0, 24), "Position", UDim2.new(1, -118, 0.5, -12), "BackgroundColor3", cs.SH, "Text", tostring(Config.CarpetMinGen or ""), "Font", Enum.Font.Gotham, "TextSize", 11, "TextColor3", cs.TP, "PlaceholderText", "e.g. 5k, 1m, 1b", "ClearTextOnFocus", false)
-            JUI.corner(tb, 5)
-            tb.FocusLost:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.CarpetMinGen = tb.Text:gsub("%s", ""); SaveConfig() end)
-        end
-        _sliderRow(abS, 11, "Carpet TP Speed", 30, 150, 5, false, tonumber(Config.CarpetBuySpeed) or 70,
-            function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.CarpetBuySpeed = v; _G.JAF_CarpetBuySpeed = v end,
-            function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return string.format("%d studs/s", v) end, nil, 120)
-        if _G.JAF_FastBuyAllowed and _G.JAF_FastBuyAllowed() then
-        makeToggle(abS, "Fast Auto Buy",
-            function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.AutoBuyMode == "fast" end,
-            function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.AutoBuyMode = v and "fast" or "normal"; SaveConfig() end, 12, true)
-        do
-            local fbHi = tonumber(_G.JAF_AutoBuyFastMax) or 61
-            _sliderRow(abS, 13, "Fast Buy Rate", 1, fbHi, 1, false, tonumber(Config.AutoBuyFastRate) or 12,
-                function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.AutoBuyFastRate = v end,
-                function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return (v >= fbHi) and "MAX (per frame)" or string.format("%d /s", v) end, nil, 140, true)
-        end end
-        _cfgTog(abS, "Auto Grief", "AutoGrief", 14, nil, true)
-        _cfgTog(abS, "Kick After Buy", "KickAfterBuy", 15, nil, true)
-        makeToggle(abS, "Kick to PS",
-            function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.KickAfterBuyToPS end,
-            function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.KickAfterBuyToPS = v; SaveConfig(); if _G.JAF_RefreshCarpetPSHint then _G.JAF_RefreshCarpetPSHint() end end, 16, true)
-        local psHint = JUI.new("TextLabel", abS, "Size", UDim2.new(1, 0, 0, 16), "BackgroundTransparency", 1, "LayoutOrder", 17, "Font", Enum.Font.Gotham, "TextSize", 10, "TextXAlignment", Enum.TextXAlignment.Left, "TextWrapped", true)
-        psHint:SetAttribute("JAFNoSearch", true)
-        local function updPsHint() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local linkCode = _G.JAF_ParsePSInput and _G.JAF_ParsePSInput(Config.PrivateServerCode)
-            if not Config.KickAfterBuyToPS then
-                psHint.Text = ""
-            elseif linkCode then
-                psHint.Text = "PS link saved."
-                psHint.TextColor3 = Theme.Success
-            else
-                psHint.Text = "No PS link saved -- save one first."
-                psHint.TextColor3 = Theme.Error
-            end end
-        _G.JAF_RefreshCarpetPSHint = updPsHint
-        updPsHint()
-    end)
-    _addTab("inv", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local iS = tScrolls2["inv"]
-    makeSec(iS,"INVIS",0)
-    makeToggle(iS,"Auto Fix Lagback",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return _G.AutoRecoverLagback end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_G.AutoRecoverLagback=v; Config.AutoRecoverLagback=v; SaveConfig() end,1,true)
-    _sliderRow(iS, 4, "Rotation", 180, 360, 1, false, Config.InvisStealAngle or 233,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.InvisStealAngle=v; _G.InvisStealAngle=v end)
-    _sliderRow(iS, 5, "Depth", 0.5, 5, 0.1, true, Config.SinkSliderValue or 2.5,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.SinkSliderValue=v; _G.SinkSliderValue=v end, nil, "3-4 recommended")
-    makeToggle(iS,"Auto Invis on Steal",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.AutoInvisDuringSteal end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.AutoInvisDuringSteal=v; _G.AutoInvisDuringSteal=v; SaveConfig() end,10,true)
-    makeToggle(iS,"Invis Delay",function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.InvisDelayEnabled == true end,function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.InvisDelayEnabled=v; _G.JAF_InvisDelayEnabled=v; SaveConfig() end,11,true)
-    _sliderRow(iS, 12, "Invis Delay (sec)", 0, 1, 0.1, false, (tonumber(Config.InvisDelayMs) or 0)/1000,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.InvisDelayMs=v*1000; _G.JAF_InvisDelayMs=v*1000 end)
-    end)
-    _addTab("adm", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local admS = tScrolls2["adm"]
-    local cs = C()
-    makeSec(admS,"ADMIN PANEL",0)
-    _cfgTog(admS,"Random Command","AdminRandomCmd",1,2)
-    _cfgTog(admS,"Show Prox Circle","ShowProxCircle",2,2)
-    _sliderRow(admS, 3, "Prox Circle Studs", 5, 50, 1, true, Config.ProximityRange or 15,
-        function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-Config.ProximityRange = v end, nil, nil, 46, true)
-    do
-        local CMDS = {"balloon","inverse","jail","jumpscare","morph","nightvision","ragdoll","rocket","tiny"}
-        local rows = {}
-        for i, cmd in ipairs(CMDS) do
-            rows[#rows+1] = makeToggle(admS, cmd:sub(1,1):upper()..cmd:sub(2),
-                function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return not (Config.AdminAllowedCmds and Config.AdminAllowedCmds[cmd] == false) end,
-                function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                    if type(Config.AdminAllowedCmds) ~= "table" then Config.AdminAllowedCmds = {} end
-                    Config.AdminAllowedCmds[cmd] = v; SaveConfig()
-                end, 4 + i)
-        end
-        _collapse(admS, 4, 30, cs.SH, Theme.Accent1, 12, 7, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return "Allowed Commands" end, rows, false)
-    end
-    do
-        local function _mkOrderUI() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            _G.JAF_BuildCmdOrderUI(admS, 14, {rowH = 28, hdrH = 30, corner = 7, textSize = 12, save = SaveConfig})
-        end
-        if _G.JAF_BuildCmdOrderUI then
-            _mkOrderUI()
-        else
-            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                for _ = 1, 100 do
-                    task.wait(0.1)
-                    if _G.JAF_BuildCmdOrderUI then if admS and admS.Parent then pcall(_mkOrderUI) end return end
-                end end) end end
-    makeSec(admS,"ANTI-AP",30)
-    for _, t in ipairs({
-        {"Anti-AP Atlas Users",      "AntiApAtlasUsers",      31},
-        {"Anti-AP Kawaifu Users",    "AntiApKawaifuUsers",    32},
-        {"Anti-AP Braintopia Users", "AntiApBraintopiaUsers", 33},
-        {"Anti-AP FMLY",             "AntiApFmlyUsers",       34},
-        {"Anti-AP SON",              "AntiApSonUsers",        35},
-    }) do _cfgTog(admS, t[1], t[2], t[3], 1) end
-    makeSec(admS,"BLACKLIST",40)
-    do
-        local addRow = JUI.new("Frame", admS, "Size", UDim2.new(1,0,0,30), "BackgroundTransparency", 1, "LayoutOrder", 41)
-        local input = JUI.new("TextBox", addRow, "Size", UDim2.new(1,-58,0,28), "Position", UDim2.new(0,0,0,0), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "Text", "", "PlaceholderText", "Roblox username...", "Font", Enum.Font.Gotham, "TextSize", 11, "TextColor3", cs.TP, "PlaceholderColor3", cs.TS, "ClearTextOnFocus", false)
-        JUI.corner(input, 6)
-        JUI.stroke(input, cs.SH, 1, 0.3)
-        JUI.new("UIPadding", input, "PaddingLeft", UDim.new(0,8))
-        local addBtn = JUI.new("TextButton", addRow, "Size", UDim2.new(0,50,0,28), "Position", UDim2.new(1,-50,0,0), "BackgroundColor3", Theme.Error, "Text", "ADD", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", _G.JAF_OnAccent(Theme.Error), "AutoButtonColor", false)
-        JUI.corner(addBtn, 6)
-        local function rebuildAdmBL() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            for _, c in ipairs(admS:GetChildren()) do if c.Name == "AdmBLEntry" then c:Destroy() end end
-            local c2 = C()
-            local rowBg = Color3.fromRGB(math.floor(Theme.Error.R*255*0.35), math.floor(Theme.Error.G*255*0.35), math.floor(Theme.Error.B*255*0.35))
-            local onErr = _G.JAF_OnAccent(Theme.Error)
-            for i, name in ipairs(BlacklistedPlayers) do
-                local row = JUI.new("Frame", admS, "Name", "AdmBLEntry", "LayoutOrder", 100 + i, "Size", UDim2.new(1,0,0,28), "BackgroundColor3", rowBg, "BorderSizePixel", 0)
-                JUI.corner(row, 6)
-                JUI.stroke(row, Theme.Error, 1, 0.5)
-                JUI.new("TextLabel", row, "Size", UDim2.new(1,-36,1,0), "Position", UDim2.new(0,10,0,0), "BackgroundTransparency", 1, "Text", name, "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", c2.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-                local rmv = JUI.new("TextButton", row, "Size", UDim2.new(0,26,0,20), "Position", UDim2.new(1,-30,0.5,-10), "BackgroundColor3", Theme.Error, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", onErr, "AutoButtonColor", false)
-                JUI.corner(rmv, 4)
-                local capName = name
-                rmv.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                    removeFromBlacklist(capName)
-                    rebuildAdmBL()
-                end) end end
-        local function doAdd() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local name = input.Text:match("^%s*(.-)%s*$")
-            if name == "" then return end
-            if isBlacklisted(name) then input.Text = "" return end
-            if addToBlacklist(name) then input.Text = "" rebuildAdmBL() end
-        end
-        addBtn.MouseButton1Click:Connect(doAdd)
-        input.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if enter then doAdd() end end)
-        if _G.JAF_BLRefreshBase == nil then _G.JAF_BLRefreshBase = refreshBlacklistUI or false end
-        local _prevRefresh = _G.JAF_BLRefreshBase
-        refreshBlacklistUI = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            if type(_prevRefresh) == "function" then pcall(_prevRefresh) end
-            pcall(rebuildAdmBL)
-        end
-        rebuildAdmBL()
-    end end)
-    _addTab("uih", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local rS = tScrolls2["uih"]
-        local cs = C()
-        makeSec(rS, "RESET", 120)
-        local function resetRow(label, order, run) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local row = JUI.new("Frame", rS, "Size", UDim2.new(1, 0, 0, 40), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", order)
-            JUI.corner(row, 7)
-            local lbl = JUI.new("TextLabel", row, "Size", UDim2.new(1, -130, 1, 0), "Position", UDim2.new(0, 14, 0, 0), "BackgroundTransparency", 1, "Text", label, "Font", Enum.Font.GothamBold, "TextSize", 13, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd)
-            local b = JUI.new("TextButton", row, "Size", UDim2.new(0, 100, 0, 26), "Position", UDim2.new(1, -112, 0.5, -13), "BackgroundColor3", cs.BG, "AutoButtonColor", false, "BorderSizePixel", 0, "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "Text", "RESET")
-            JUI.corner(b, 6)
-            local bst = JUI.new("UIStroke", b, "ApplyStrokeMode", Enum.ApplyStrokeMode.Border, "Color", Theme.Accent1, "Thickness", 1.4, "Transparency", 0.15)
-            local armed, token = false, 0
-            local function disarm() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                armed = false
-                b.Text = "RESET"; b.TextColor3 = C().TP
-                bst.Color = Theme.Accent1; bst.Thickness = 1.4
-            end
-            _G.JAF_OnTap(b, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                if not armed then
-                    armed = true; token = token + 1
-                    local myToken = token
-                    b.Text = "SURE?"
-                    bst.Color = Theme.Error; bst.Thickness = 2.2
-                    task.delay(4, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if armed and token == myToken then disarm() end end)
-                    return
-                end
-                token = token + 1
-                disarm()
-                local ok, res = pcall(run)
-                lbl.Text = ok and (res or "Done") or "Failed"
-                task.delay(2.5, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if lbl.Parent then lbl.Text = label end end)
-            end)
-            return row
-        end
-        resetRow("Reset Settings to Default", 121, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            if not _G.JAF_ResetSettingsToDefault then return "Unavailable" end
-            if not _G.JAF_ResetSettingsToDefault() then return "Failed" end
-            return "Reset -- rejoin to apply"
-        end)
-        resetRow("Reset GUI Positions to Default", 122, function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            if not _G.JAF_ResetGuiPositions then return "Unavailable" end
-            return string.format("Moved %d panels back", _G.JAF_ResetGuiPositions())
-        end)
-        local rHint = JUI.new("TextLabel", rS, "Size", UDim2.new(1, 0, 0, 40), "BackgroundTransparency", 1, "LayoutOrder", 123, "Font", Enum.Font.Gotham, "TextSize", 12, "TextColor3", cs.TS, "TextWrapped", true, "TextXAlignment", Enum.TextXAlignment.Left, "TextYAlignment", Enum.TextYAlignment.Top, "Text", "Settings reset also clears your blacklist, priority list and keybinds, then needs a rejoin. Positions reset just moves panels back, instantly.")
-        rHint:SetAttribute("JAFNoSearch", true)
-    end)
-    _addTab("uih", function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-    local tS = tScrolls2["uih"]
-    local cs = C()
-    makeSec(tS,"THEME",100)
-    do
-        local TDEFS2 = {
-            {"Cyan",     "cyan",     Color3.fromRGB(50,200,255)},
-            {"Midnight", "midnight", Color3.fromRGB(125,135,255)},
-            {"Ocean",    "ocean",    Color3.fromRGB(60,130,255)},
-            {"Ice",      "ice",      Color3.fromRGB(150,220,255)},
-            {"Rose",     "rose",     Color3.fromRGB(255,120,160)},
-            {"White",    "white",    Color3.fromRGB(235,235,245)},
-            {"Dawg",     "dawg",     Color3.fromRGB(196,42,38)},
-        }
-        for i2, td2 in ipairs(TDEFS2) do
-            local r = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,36), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 100 + i2)
-            JUI.corner(r, 7)
-            local dot2 = JUI.new("Frame", r, "Size", UDim2.new(0,12,0,12), "Position", UDim2.new(0,12,0.5,-6), "BackgroundColor3", td2[3], "BorderSizePixel", 0)
-            JUI.round(dot2)
-            JUI.new("TextLabel", r, "Size", UDim2.new(0.5,0,1,0), "Position", UDim2.new(0,32,0,0), "BackgroundTransparency", 1, "Text", td2[1], "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-            local isActive = (Config.CurrentTheme == td2[2])
-            local apb = JUI.new("TextButton", r, "Size", UDim2.new(0,72,0,24), "Position", UDim2.new(1,-80,0.5,-12), "BackgroundColor3", isActive and td2[3] or cs.SH, "Text", isActive and "ACTIVE" or "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", isActive and _G.JAF_OnAccent() or cs.TP, "AutoButtonColor", false)
-            JUI.corner(apb, 5)
-            local tid2 = td2[2]; local tc2 = td2[3]
-            apb.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                applyTheme(tid2)
-                local c2 = C()
-                for _, ch in ipairs(tS:GetChildren()) do
-                    local b2 = ch:FindFirstChildOfClass("TextButton")
-                    if b2 then _P(b2, "BackgroundColor3", c2.SH, "Text", "APPLY", "TextColor3", c2.TP) end
-                end
-                _P(apb, "BackgroundColor3", tc2, "Text", "ACTIVE", "TextColor3", _G.JAF_OnAccent(tc2))
-            end) end
-        local custRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 150)
-        JUI.corner(custRow, 7)
-        JUI.new("TextLabel", custRow, "Size", UDim2.new(0,46,1,0), "Position", UDim2.new(0,10,0,0), "BackgroundTransparency", 1, "Text", "Custom", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-        local custBox = JUI.new("TextBox", custRow, "Size", UDim2.new(0,90,0,24), "Position", UDim2.new(0,60,0.5,-12), "BackgroundColor3", cs.SH, "Text", tostring(Config.CustomThemeHex or "B432FF"), "PlaceholderText", "hex e.g. B432FF", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "ClearTextOnFocus", false, "BorderSizePixel", 0)
-        JUI.corner(custBox, 5)
-        local custApply = JUI.new("TextButton", custRow, "Size", UDim2.new(0,72,0,24), "Position", UDim2.new(1,-80,0.5,-12), "BackgroundColor3", cs.SH, "Text", "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", cs.TP, "AutoButtonColor", false, "BorderSizePixel", 0)
-        JUI.corner(custApply, 5)
-        local function applyCustom() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local hx = custBox.Text:gsub("#",""):gsub("%s","")
-            if buildCustomThemeFromHex(hx) then
-                Config.CustomThemeHex = hx; SaveConfig()
-                custBox.Text = hx
-                applyTheme("custom")
-            else
-                custBox.Text = Config.CustomThemeHex or "B432FF"
-            end end
-        custApply.MouseButton1Click:Connect(applyCustom)
-        custBox.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if enter then applyCustom() end end)
-        local imgRow = JUI.new("Frame", tS, "Size", UDim2.new(1,0,0,40), "BackgroundColor3", cs.SURF, "BorderSizePixel", 0, "LayoutOrder", 152)
-        JUI.corner(imgRow, 7)
-        JUI.new("TextLabel", imgRow, "Size", UDim2.new(0,40,1,0), "Position", UDim2.new(0,10,0,0), "BackgroundTransparency", 1, "Text", "Image", "Font", Enum.Font.GothamBold, "TextSize", 11, "TextColor3", cs.TP, "TextXAlignment", Enum.TextXAlignment.Left)
-        local imgBox = JUI.new("TextBox", imgRow, "Size", UDim2.new(1,-130,0,24), "Position", UDim2.new(0,54,0.5,-12), "BackgroundColor3", cs.SH, "Text", tostring(Config.ThemeImageUrl or ""), "PlaceholderText", "paste image URL...", "Font", Enum.Font.Gotham, "TextSize", 11, "TextColor3", cs.TP, "ClearTextOnFocus", false, "TextXAlignment", Enum.TextXAlignment.Left, "TextTruncate", Enum.TextTruncate.AtEnd, "BorderSizePixel", 0)
-        JUI.corner(imgBox, 5)
-        local imgApply = JUI.new("TextButton", imgRow, "Size", UDim2.new(0,64,0,24), "Position", UDim2.new(1,-70,0.5,-12), "BackgroundColor3", cs.SH, "Text", "APPLY", "Font", Enum.Font.GothamBold, "TextSize", 10, "TextColor3", cs.TP, "AutoButtonColor", false, "BorderSizePixel", 0)
-        JUI.corner(imgApply, 5)
-        local function applyImg() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-            local url = imgBox.Text:gsub("%s","")
-            if url == "" then
-                Config.ThemeImageUrl = ""; SaveConfig()
-                _G.JAF_ThemeImageAsset = nil
-                if jafApplyThemeImageToPanels then pcall(jafApplyThemeImageToPanels, nil) end
-                return
-            end
-            imgApply.Text = "..."
-            task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                local ok = nil
-                if jafApplyImageTheme then ok = jafApplyImageTheme(url) end
-                if ok then Config.ThemeImageUrl = url; SaveConfig() end
-                if imgApply and imgApply.Parent then imgApply.Text = "APPLY" end
-            end) end
-        imgApply.MouseButton1Click:Connect(applyImg)
-        imgBox.FocusLost:Connect(function(enter) LPH_ATTRIBUTES(ERROR_HANDLING(false))
-if enter then applyImg() end end)
-        makeToggle(tS, "Animate GIF",
-            function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return Config.GifAnimate ~= false end,
-            function(v) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-                Config.GifAnimate = v; SaveConfig()
-                if not v then
-                    if jafStopGifAnimation then jafStopGifAnimation() end
-                elseif _G.JAF_GifUrl and _G.JAF_ThemeImageAsset and jafSetupGifAnimation then
-                    task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-pcall(jafSetupGifAnimation, _G.JAF_GifUrl) end)
-                end
-            end, 153)
-    end end)
     searchResults = JUI.new("ScrollingFrame", cArea, "Name", "FeatureSearchResults", "Size", UDim2.new(1,0,1,0), "BackgroundTransparency", 1, "BorderSizePixel", 0, "ScrollBarThickness", 0, "ScrollBarImageColor3", Theme.Accent1, "CanvasSize", UDim2.new(0,0,0,0), "AutomaticCanvasSize", Enum.AutomaticSize.Y, "Visible", false)
     do
         local sll = Instance.new("UIListLayout", searchResults)
@@ -16315,7 +15912,7 @@ task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     end) end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     task.wait(1.5)
-    if Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
+    if false and Config.ThemeImageUrl and Config.ThemeImageUrl ~= "" and jafApplyImageTheme then
         pcall(jafApplyImageTheme, Config.ThemeImageUrl)
     elseif Config.CurrentTheme == "dawg" and THEMES and THEMES["dawg"] then
         applyTheme("dawg")
