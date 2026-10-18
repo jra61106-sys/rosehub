@@ -1133,10 +1133,10 @@ _G.invisibleStealEnabled = false
 _G.RecoveryInProgress = false
 local function kickPlayer() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local ok = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if game.Shutdown then game:Shutdown() else LocalPlayer:Kick("\nJUSTAFAN HUB") end
+        if game.Shutdown then game:Shutdown() else LocalPlayer:Kick("\nGERAT HUB") end
     end)
     if not ok then pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-LocalPlayer:Kick("\nJUSTAFAN HUB") end) end
+LocalPlayer:Kick("\nGERAT HUB") end) end
 end
 _G.JAF_KickPlayer = kickPlayer
 local function _jafParsePSInput(input) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
@@ -13830,10 +13830,18 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
         _P(mainStroke, "Color", Theme.Accent1, "Thickness", 1, "Transparency", 0.45)
         if Config.PanelScales then Config.PanelScales["JustAFanStatusHUD"] = nil end
         local _splitX = 322
-        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Rose Private", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
-        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@pumpkinjustlarping", "Font", Enum.Font.GothamMedium, "TextSize", 14)
+        local hubName = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX - 28, 0, 25), "Position", UDim2.new(0, 0, 0, 3), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBold, "TextSize", 22, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Center)
+        local hubOwner = JUI.new("TextLabel", main, "Size", UDim2.new(0, _splitX - 28, 0, 16), "Position", UDim2.new(0, 0, 0, 26), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 14)
         hubOwner.TextColor3 = Color3.fromRGB(255, 255, 255)
         hubOwner.TextXAlignment = Enum.TextXAlignment.Center
+        local hudClose = JUI.new("TextButton", main, "Size", UDim2.new(0, 22, 0, 22), "Position", UDim2.new(0, _splitX - 26, 0.5, -11), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.2, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 12, "TextColor3", Theme.TextPrimary, "AutoButtonColor", false, "ZIndex", 5)
+        Instance.new("UICorner", hudClose).CornerRadius = UDim.new(0, 6)
+        hudClose.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            main.Visible = false
+            Config.HideStatusHUD = true
+            pcall(SaveConfig)
+        end)
+        if Config.HideStatusHUD == true then main.Visible = false end
         local div = JUI.new("Frame", main, "Size", UDim2.new(0, 1, 0, 30), "Position", UDim2.new(0, _splitX, 0.5, -15), "BackgroundColor3", Theme.Accent1, "BackgroundTransparency", 0.45, "BorderSizePixel", 0)
         local _rightW = 520 - _splitX
         local fpsLbl = JUI.new("TextLabel", main, "Size", UDim2.new(0, _rightW, 0, 15), "Position", UDim2.new(0, _splitX, 0, 9), "BackgroundTransparency", 1)
@@ -13862,6 +13870,31 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
     end
     buildHUD()
     _G.jafRebuildStatusHUD = buildHUD
+    -- Center branding message: stays until user closes it
+    task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if hubFind("GeratHubCenterMsg") then return end
+        if Config.HideCenterBrand == true then return end
+        local sg = Instance.new("ScreenGui")
+        _P(sg, "Name", "GeratHubCenterMsg", "ResetOnSpawn", false, "DisplayOrder", 100, "IgnoreGuiInset", true, "Parent", HubGui)
+        local card = Instance.new("Frame")
+        _P(card, "Name", "Card", "AnchorPoint", Vector2.new(0.5, 0.5), "Position", UDim2.new(0.5, 0, 0.5, 0), "Size", UDim2.new(0, 320, 0, 110), "BackgroundColor3", Theme.Background, "BackgroundTransparency", 0.08, "BorderSizePixel", 0, "Parent", sg)
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+        local st = Instance.new("UIStroke", card)
+        _P(st, "Color", Theme.Accent1, "Thickness", 1.6, "Transparency", 0.25)
+        local title = Instance.new("TextLabel")
+        _P(title, "Size", UDim2.new(1, -48, 0, 36), "Position", UDim2.new(0, 16, 0, 18), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBlack, "TextSize", 26, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Left, "Parent", card)
+        local sub = Instance.new("TextLabel")
+        _P(sub, "Size", UDim2.new(1, -48, 0, 24), "Position", UDim2.new(0, 16, 0, 56), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 16, "TextColor3", Color3.fromRGB(255, 255, 255), "TextXAlignment", Enum.TextXAlignment.Left, "Parent", card)
+        local close = Instance.new("TextButton")
+        _P(close, "Size", UDim2.new(0, 32, 0, 32), "Position", UDim2.new(1, -40, 0, 10), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.15, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "AutoButtonColor", false, "Parent", card)
+        Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
+        close.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+            Config.HideCenterBrand = true
+            pcall(SaveConfig)
+            if sg then sg:Destroy() end
+        end)
+        -- stays forever until X — no auto-dismiss
+    end)
 end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local old = hubFind("JustAFanWalkingBestBar")
