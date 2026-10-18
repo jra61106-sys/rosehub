@@ -1157,20 +1157,56 @@ end
 _G.JAF_ParsePSInput = _jafParsePSInput
 _G.JAF_TeleportToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local linkCode, placeId, shareWarn = _jafParsePSInput(Config.PrivateServerCode)
-    if shareWarn then return false, "that's a SHARE code, not a linkCode" end
-    if not linkCode then return false, "no valid private-server link code saved" end
+    if shareWarn then
+        _G.JAF_PSLastErr = "share-code-not-linkCode"
+        return false, "that's a SHARE code, not a linkCode (use privateServerLinkCode URL)"
+    end
+    if not linkCode or linkCode == "" then
+        _G.JAF_PSLastErr = "no-code"
+        return false, "no valid private-server link code saved"
+    end
     placeId = placeId or game.PlaceId
-    local ok = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        game:GetService("ExperienceService"):LaunchExperience({ placeId = placeId, linkCode = linkCode })
+    local lastErr = nil
+    -- 1) VIP linkCode via ContactListIrisInviteTeleport (most reliable for privateServerLinkCode)
+    local ok1 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local rrs = game:GetService("RobloxReplicatedStorage")
+        local ev = rrs:FindFirstChild("ContactListIrisInviteTeleport")
+            or rrs:WaitForChild("ContactListIrisInviteTeleport", 2)
+        if not ev then error("no ContactListIrisInviteTeleport") end
+        ev:FireServer(placeId, "", linkCode)
     end)
-    if ok then return true end
-    local ok2, err = pcall(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    if ok1 then _G.JAF_PSLastErr = nil; return true end
+    lastErr = "iris-failed"
+    -- 2) TeleportToPrivateServer (works for reserved-server access codes)
+    local ok2, err2 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         TeleportService:TeleportToPrivateServer(placeId, linkCode, { LocalPlayer })
     end)
-    if ok2 then return true end
-    return false, tostring(err)
+    if ok2 then _G.JAF_PSLastErr = nil; return true end
+    lastErr = tostring(err2 or "TeleportToPrivateServer failed")
+    -- 3) ExperienceService LaunchExperience (if present)
+    local ok3 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local es = game:GetService("ExperienceService")
+        if not es or not es.LaunchExperience then error("no ExperienceService") end
+        es:LaunchExperience({ placeId = placeId, linkCode = linkCode })
+    end)
+    if ok3 then _G.JAF_PSLastErr = nil; return true end
+    -- 4) Teleport with teleport data fallback
+    local ok4, err4 = pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        TeleportService:Teleport(placeId, LocalPlayer, nil, { reservedServerAccessCode = linkCode, linkCode = linkCode })
+    end)
+    if ok4 then _G.JAF_PSLastErr = nil; return true end
+    _G.JAF_PSLastErr = lastErr .. " | " .. tostring(err4)
+    return false, _G.JAF_PSLastErr
 end
-_G.JAF_KickToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false)) return _G.JAF_TeleportToPrivateServer() end
+_G.JAF_KickToPrivateServer = function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    local ok, err = _G.JAF_TeleportToPrivateServer()
+    if not ok then
+        -- retry once after short delay (remote may not be ready)
+        task.wait(0.35)
+        ok, err = _G.JAF_TeleportToPrivateServer()
+    end
+    return ok, err
+end
 local function triggerClosestUnlock(yLevel, maxY) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
     local character = LocalPlayer.Character
@@ -2645,9 +2681,9 @@ local function setCarpetSpeed(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
                 hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
             end end end) end
 local infiniteJumpEnabled = State.infiniteJumpEnabled
--- Bubble Hub style Infinite Jump (hold / manual)
+-- Lightweight Infinite Jump (no lag): only runs while Space held, cached refs
 _G.JAF_InfJumpMode = _G.JAF_InfJumpMode or "hold"
-local _ijState = { lastJumpTime = 0, manualLock = false }
+local _ijState = { lastJumpTime = 0, manualLock = false, spaceHeld = false, hrp = nil, hum = nil, char = nil }
 local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if not SAB_LIVE() then return end
     State.infiniteJumpEnabled = enabled
@@ -2657,60 +2693,68 @@ local function setInfiniteJump(enabled) LPH_ATTRIBUTES(ERROR_HANDLING(false))
     if Connections.infiniteJumpConnection then Connections.infiniteJumpConnection:Disconnect(); Connections.infiniteJumpConnection = nil end
     if Connections._ijInputBegan then Connections._ijInputBegan:Disconnect(); Connections._ijInputBegan = nil end
     if Connections._ijInputEnded then Connections._ijInputEnded:Disconnect(); Connections._ijInputEnded = nil end
+    if Connections._ijCharAdded then Connections._ijCharAdded:Disconnect(); Connections._ijCharAdded = nil end
     if Connections._ijYRemove then pcall(Connections._ijYRemove); Connections._ijYRemove = nil end
+    _ijState.spaceHeld = false
+    _ijState.hrp, _ijState.hum, _ijState.char = nil, nil, nil
     if not enabled then return end
-    local function _jv() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-return tonumber(_G.JAF_InfJumpVel) or 55 end
-    local function _manualPulse() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if (_G.JAF_InfJumpMode or "hold") ~= "manual" or _ijState.manualLock then return end
-        _ijState.manualLock = true
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if not hum or not hrp or hum.Health <= 0 then _ijState.manualLock = false; return end
+    local JUMP_VEL = tonumber(_G.JAF_InfJumpVel) or 55
+    local JUMP_GAP = tonumber(_G.JAF_InfJumpGap) or 0.1
+    local function _cacheChar(ch) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        _ijState.char = ch
+        _ijState.hum = ch and ch:FindFirstChildOfClass("Humanoid") or nil
+        _ijState.hrp = ch and ch:FindFirstChild("HumanoidRootPart") or nil
+    end
+    _cacheChar(LocalPlayer.Character)
+    Connections._ijCharAdded = LocalPlayer.CharacterAdded:Connect(function(ch) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        _cacheChar(ch)
+        task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_cacheChar(LocalPlayer.Character) end)
+    end)
+    local function _pulse() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        local hrp = _ijState.hrp
+        local hum = _ijState.hum
+        if not hrp or not hrp.Parent or not hum or hum.Health <= 0 then
+            _cacheChar(LocalPlayer.Character)
+            hrp, hum = _ijState.hrp, _ijState.hum
+            if not hrp or not hum or hum.Health <= 0 then return end
+        end
+        if _G.JAF_DropFlingActive or _G.JAF_TpActive then return end
         local now = tick()
-        if now - _ijState.lastJumpTime < 0.08 then _ijState.manualLock = false; return end
+        if now - _ijState.lastJumpTime < JUMP_GAP then return end
         _ijState.lastJumpTime = now
         local v = hrp.AssemblyLinearVelocity
-        hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
-        task.delay(0.14, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-_ijState.manualLock = false end)
+        hrp.AssemblyLinearVelocity = Vector3.new(v.X, JUMP_VEL, v.Z)
     end
-    Connections._ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
+    Connections._ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp) LPH_ATTRIBUTES(ERROR_HANDLING(false))
         if gp then return end
-        if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
-            if (_G.JAF_InfJumpMode or "hold") == "manual" then
-                _manualPulse()
-            else
-                _ijState.lastJumpTime = tick() - 0.08
-            end
+        if input.KeyCode ~= Enum.KeyCode.Space and input.KeyCode ~= Enum.KeyCode.ButtonA then return end
+        if (_G.JAF_InfJumpMode or "hold") == "manual" then
+            if _ijState.manualLock then return end
+            _ijState.manualLock = true
+            _pulse()
+            task.delay(0.12, function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+_ijState.manualLock = false end)
+        else
+            _ijState.spaceHeld = true
+            _ijState.lastJumpTime = 0
+            _pulse()
         end
     end)
-    Connections.infiniteJumpConnection = RunService.Heartbeat:Connect(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        if not SAB_LIVE() or not State.infiniteJumpEnabled then return end
+    Connections._ijInputEnded = UserInputService.InputEnded:Connect(function(input) LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
+            _ijState.spaceHeld = false
+        end
+    end)
+    -- Heartbeat only does work when space is held (cheap early exit)
+    Connections.infiniteJumpConnection = RunService.Heartbeat:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
+        if not _ijState.spaceHeld then return end
+        if not State.infiniteJumpEnabled then return end
         if (_G.JAF_InfJumpMode or "hold") ~= "hold" then return end
-        if _G.JAF_DropFlingActive or _G.JAF_TpActive then return end
-        pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-            local char = LocalPlayer.Character
-            if not char then return end
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if not hum or hum.Health <= 0 then return end
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            local now = tick()
-            local held = UserInputService:IsKeyDown(Enum.KeyCode.Space)
-                or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA)
-                or hum.Jump == true
-            if held and (now - _ijState.lastJumpTime) >= 0.08 then
-                _ijState.lastJumpTime = now
-                local v = hrp.AssemblyLinearVelocity
-                hrp.AssemblyLinearVelocity = Vector3.new(v.X, _jv(), v.Z)
-            end
-        end)
+        _pulse()
     end)
 end
 if infiniteJumpEnabled then
-    -- delay start on late inject (not autoexec) so packages/AC settle first
     if _G.JAF_BootReady == false then
         task.spawn(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
             local t0 = os.clock()
@@ -2721,6 +2765,7 @@ if infiniteJumpEnabled then
         setInfiniteJump(true)
     end
 end
+
 do
     local floatOn, conn, lastChar
     local function floatOff() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
