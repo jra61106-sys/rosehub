@@ -14965,6 +14965,7 @@ Config[key] = v; SaveConfig() end, order, full)
     local _sp = Config.JustAFanSettingsPos
     local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 300, 0, 230), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -115), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
     panel:SetAttribute("JAFBaseScale", 1)
+    panel:SetAttribute("JAFNoUIScale", true)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
         for _, o in ipairs(panel:GetChildren()) do if o:IsA("UIScale") then o:Destroy() end end
         panel.Size = UDim2.new(0, 300, 0, 230)
@@ -17112,16 +17113,16 @@ do
                 if vp.X < 10 then vp = _G.JAF_Viewport() end
                 for _, ch in ipairs(sg:GetChildren()) do
                     if ch:IsA("GuiObject") then
-                        -- Keep the main panel's base dimensions fixed, but apply UIScale
-                        -- to the whole panel so the UI Scale setting remains usable.
-                        if ch:GetAttribute("JAFNoUIScale") then
+                        -- Keep MainPanel at its original fixed size; scaling it breaks
+                        -- the internal layout on smaller touch screens.
+                        if ch:GetAttribute("JAFNoUIScale") or ch.Name == "MainPanel" then
                             for _, o in ipairs(ch:GetChildren()) do
                                 if o:IsA("UIScale") then o:Destroy() end
                             end
+                            if ch.Name == "MainPanel" then
+                                ch.Size = UDim2.new(0, 300, 0, 230)
+                            end
                             continue
-                        end
-                        if ch.Name == "MainPanel" then
-                            ch.Size = UDim2.new(0, 300, 0, 230)
                         end
                         local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
                         local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
