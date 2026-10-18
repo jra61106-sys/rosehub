@@ -14965,9 +14965,8 @@ Config[key] = v; SaveConfig() end, order, full)
     local _sp = Config.JustAFanSettingsPos
     local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 300, 0, 230), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -115), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
     panel:SetAttribute("JAFBaseScale", 1)
-    panel:SetAttribute("JAFNoUIScale", true)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        for _, o in ipairs(panel:GetChildren()) do if o:IsA("UIScale") then o:Destroy() end end
+        for _, o in ipairs(panel:GetChildren()) do if o:IsA("UIScale") and o.Name == "JAFUIScale" then o:Destroy() end end
         panel.Size = UDim2.new(0, 300, 0, 230)
     end)
     _G.JAF_SleekFontRoot = panel
@@ -15544,7 +15543,7 @@ return Config.MobileSheet ~= false end,function(v) LPH_ATTRIBUTES(VM(NONE), ERRO
 pcall(_G.JAF_MobileRefresh) end)
     end,93,true)
     makeSec(uhS,"PANEL SIZE",25)
-    _sliderRow(uhS, 26, "UI Scale", 0.75, 1.25, 0.05, false, math.clamp(tonumber(Config.UIScale) or 1, 0.75, 1.25),
+    _sliderRow(uhS, 26, "UI Scale", 0.5, 1.5, 0.05, false, Config.UIScale or 1,
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
 Config.UIScale = v; if _G.JAF_ApplyUIScale then _G.JAF_ApplyUIScale(v) end end,
         function(v) LPH_ATTRIBUTES(ERROR_HANDLING(false))
@@ -17055,56 +17054,43 @@ do
         "JustAFanStatusHUD", "JustAFanWalkingBestBar",
         "JustAFanGrabKick", "PriorityListGUI", "AutoStealPriorityEditor", "JAFAdvTpSpeed",
     }
-    if not Config.PanelScalesMigrated then
+    -- Older builds stored independent scales per panel, making one UI Scale
+    -- value produce mismatched sizes. Clear those obsolete overrides once.
+    local hadLegacyPanelScales = type(Config.PanelScales) ~= "table" or next(Config.PanelScales) ~= nil
+    Config.PanelScales = {}
+    if not Config.PanelScalesMigrated or hadLegacyPanelScales then
         Config.PanelScalesMigrated = true
-        if type(Config.PanelScales) == "table" then
-            for _, n in ipairs({ "XiAdminToolsPanel", "JustAFanWalkingBestBar", "PriorityListGUI",
-                                 "AutoStealPriorityEditor", "JAFAdvTpSpeed" }) do
-                Config.PanelScales[n] = nil
-            end end
         pcall(SaveConfig)
     end
-    -- Stable UI scaling: apply one consistent UIScale to each independent
-    -- top-level panel. Avoid per-panel auto-fit and position correction, which
-    -- caused panels to get different scales and jump around on touch screens.
-    local lastSize = setmetatable({}, { __mode = "k" })
-    local function sizeSettled(ch) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        local now = ch.AbsoluteSize
-        local was = lastSize[ch]
-        lastSize[ch] = now
-        return was ~= nil and math.abs(was.X - now.X) < 1 and math.abs(was.Y - now.Y) < 1
-    end
+    -- Apply one predictable UIScale to each independent top-level panel.
+    -- Do not auto-fit or rewrite positions on a timer: that caused panels to jump
+    -- and receive different scales depending on viewport timing.
     _G.JAF_ApplyUIScale = function(scale) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
-        scale = math.clamp(tonumber(scale) or 1, 0.75, 1.25)
+        scale = math.clamp(tonumber(scale) or 1, 0.5, 1.5)
         Config.UIScale = scale
-        local panelScales = Config.PanelScales or {}
         for _, name in ipairs(SCALED_GUIS) do
             local sg = hubFind(name)
             if sg then
                 for _, ch in ipairs(sg:GetChildren()) do
                     if ch:IsA("GuiObject") then
-                        -- Main settings panel uses a fixed 300x230 layout;
-                        -- scaling its root breaks offsets and touch hitboxes.
-                        if ch:GetAttribute("JAFNoUIScale") or ch.Name == "MainPanel" then
-                            for _, o in ipairs(ch:GetChildren()) do
-                                if o:IsA("UIScale") and o.Name == "JAFUIScale" then o:Destroy() end
-                            end
+                        local us = ch:FindFirstChild("JAFUIScale")
+                        if ch:GetAttribute("JAFNoUIScale") then
+                            -- Remove only the scale managed by this function.
+                            if us and us:IsA("UIScale") then us:Destroy() end
                         else
                             local fullBleed = ch.Size.X.Scale >= 0.99 and ch.Size.Y.Scale >= 0.99
                             local base = tonumber(ch:GetAttribute("JAFBaseScale")) or 1
                             if base <= 0.05 or base > 1 then base = 1 end
-                            local per = math.clamp(tonumber(panelScales[name]) or 1, 0.75, 1.25)
-                            local eff = fullBleed and 1 or math.clamp(scale * per * base, 0.75, 1.25)
-                            local us = ch:FindFirstChild("JAFUIScale")
-                            if not us then
+                            local eff = fullBleed and 1 or math.clamp(scale * base, 0.5, 1.5)
+                            if not us or not us:IsA("UIScale") then
+                                if us then us:Destroy() end
                                 us = Instance.new("UIScale")
                                 us.Name = "JAFUIScale"
                                 us.Parent = ch
                             end
-                            for _, o in ipairs(ch:GetChildren()) do
-                                if o ~= us and o:IsA("UIScale") then o:Destroy() end
+                            if math.abs(us.Scale - eff) > 0.0005 then
+                                us.Scale = eff
                             end
-                            if math.abs(us.Scale - eff) > 0.0005 then us.Scale = eff end
                         end
                     end
                 end
