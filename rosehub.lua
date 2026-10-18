@@ -871,7 +871,7 @@ local DefaultConfig = {
     AntiBeeDisco = false,
     FOV = 70,
     AutoUnlockOnSteal = false,
-    UIScale = 1,
+    UIScale = 0.75,
     PanelScales = {},
     MobileMode      = "auto",
     HubButtonMode   = "auto",
@@ -1313,17 +1313,17 @@ local function triggerClosestUnlock(yLevel, maxY) LPH_ATTRIBUTES(VM(NONE), ERROR
 _G.JAF_Config     = Config      -- exposed so the Modern GUI (appended at EOF) can read/write settings
 _G.JAF_SaveConfig = SaveConfig
 local Theme = {
-    -- Monochrome look matching the Modern GUI (neutral grayscale, white accents).
-    Background      = Color3.fromRGB(20, 20, 20),
-    Surface         = Color3.fromRGB(34, 34, 34),
-    SurfaceHighlight= Color3.fromRGB(46, 46, 46),
-    Accent1         = Color3.fromRGB(235, 235, 235),
-    Accent2         = Color3.fromRGB(130, 130, 130),
-    TextPrimary     = Color3.fromRGB(238, 238, 238),
-    TextSecondary   = Color3.fromRGB(130, 130, 130),
-    Success         = Color3.fromRGB(235, 235, 235),
-    Error           = Color3.fromRGB(205, 120, 120),
-    Stroke          = Color3.fromRGB(50, 50, 50),
+    -- Orange Gerat Hub theme
+    Background      = Color3.fromRGB(18, 12, 8),
+    Surface         = Color3.fromRGB(32, 22, 14),
+    SurfaceHighlight= Color3.fromRGB(48, 32, 18),
+    Accent1         = Color3.fromRGB(255, 140, 30),
+    Accent2         = Color3.fromRGB(220, 100, 20),
+    TextPrimary     = Color3.fromRGB(255, 245, 235),
+    TextSecondary   = Color3.fromRGB(210, 160, 110),
+    Success         = Color3.fromRGB(255, 160, 50),
+    Error           = Color3.fromRGB(255, 90, 70),
+    Stroke          = Color3.fromRGB(80, 45, 20),
 }
 function _G.JAF_OnAccent(c) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     c = c or Theme.Accent1
@@ -1344,6 +1344,7 @@ do
         rose     = {26,10,16, 38,14,24, 64,22,40, 255,120,160, 215,75,120, 250,240,244, 230,180,200, 255,120,160, 255,95,95},
         ocean    = {6,14,26, 8,22,42, 14,40,72, 60,130,255, 30,90,210, 238,242,250, 175,195,230, 60,130,255, 210,90,90},
         white    = {18,18,22, 28,28,34, 48,48,56, 235,235,245, 170,170,185, 245,245,248, 185,185,195, 235,235,245, 210,90,90},
+        orange   = {18,12,8, 32,22,14, 48,32,18, 255,140,30, 220,100,20, 255,245,235, 210,160,110, 255,160,50, 255,90,70},
         dawg     = {20,13,11, 34,19,17, 60,26,24, 196,42,38, 142,24,22, 246,236,232, 226,184,174, 196,42,38, 255,95,95},
         custom   = {18,8,38, 25,10,55, 45,15,85, 180,50,255, 130,0,220, 240,240,240, 200,170,230, 180,50,255, 210,90,90},
     }
@@ -1993,22 +1994,20 @@ do
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
--- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
+-- FORCE orange Gerat Hub look over any saved theme
 do
-    Theme.Background       = Color3.fromRGB(20, 20, 20)
-    Theme.Surface          = Color3.fromRGB(34, 34, 34)
-    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
-    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
-    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
-    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(235, 235, 235)
-    Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(50, 50, 50)
-    _G.JAF_ForceMono = true
-    -- stop later image/custom theming from re-tinting
-    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
+    Theme.Background       = Color3.fromRGB(18, 12, 8)
+    Theme.Surface          = Color3.fromRGB(32, 22, 14)
+    Theme.SurfaceHighlight = Color3.fromRGB(48, 32, 18)
+    Theme.Accent1          = Color3.fromRGB(255, 140, 30)
+    Theme.Accent2          = Color3.fromRGB(220, 100, 20)
+    Theme.TextPrimary      = Color3.fromRGB(255, 245, 235)
+    Theme.TextSecondary    = Color3.fromRGB(210, 160, 110)
+    Theme.Success          = Color3.fromRGB(255, 160, 50)
+    Theme.Error            = Color3.fromRGB(255, 90, 70)
+    Theme.Stroke           = Color3.fromRGB(80, 45, 20)
+    _G.JAF_ForceMono = false
+    if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "orange" end
 end
 JAF_STYLE = { PanelCorner        = 14, PanelBgTransparency = 0.12, StrokeThickness    = 1.4, StrokeTransparency = 0.15, }
 local JAF_STYLE_TARGETS = {
@@ -13870,31 +13869,6 @@ _G._jafHudHeartbeat:Disconnect() end); _G._jafHudHeartbeat = nil end
     end
     buildHUD()
     _G.jafRebuildStatusHUD = buildHUD
-    -- Center branding message: stays until user closes it
-    task.defer(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-        if hubFind("GeratHubCenterMsg") then return end
-        if Config.HideCenterBrand == true then return end
-        local sg = Instance.new("ScreenGui")
-        _P(sg, "Name", "GeratHubCenterMsg", "ResetOnSpawn", false, "DisplayOrder", 100, "IgnoreGuiInset", true, "Parent", HubGui)
-        local card = Instance.new("Frame")
-        _P(card, "Name", "Card", "AnchorPoint", Vector2.new(0.5, 0.5), "Position", UDim2.new(0.5, 0, 0.5, 0), "Size", UDim2.new(0, 320, 0, 110), "BackgroundColor3", Theme.Background, "BackgroundTransparency", 0.08, "BorderSizePixel", 0, "Parent", sg)
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
-        local st = Instance.new("UIStroke", card)
-        _P(st, "Color", Theme.Accent1, "Thickness", 1.6, "Transparency", 0.25)
-        local title = Instance.new("TextLabel")
-        _P(title, "Size", UDim2.new(1, -48, 0, 36), "Position", UDim2.new(0, 16, 0, 18), "BackgroundTransparency", 1, "Text", "Gerat Hub", "Font", Enum.Font.GothamBlack, "TextSize", 26, "TextColor3", Theme.Accent1, "TextXAlignment", Enum.TextXAlignment.Left, "Parent", card)
-        local sub = Instance.new("TextLabel")
-        _P(sub, "Size", UDim2.new(1, -48, 0, 24), "Position", UDim2.new(0, 16, 0, 56), "BackgroundTransparency", 1, "Text", "@herbrunettehairs", "Font", Enum.Font.GothamMedium, "TextSize", 16, "TextColor3", Color3.fromRGB(255, 255, 255), "TextXAlignment", Enum.TextXAlignment.Left, "Parent", card)
-        local close = Instance.new("TextButton")
-        _P(close, "Size", UDim2.new(0, 32, 0, 32), "Position", UDim2.new(1, -40, 0, 10), "BackgroundColor3", Theme.SurfaceHighlight, "BackgroundTransparency", 0.15, "Text", "X", "Font", Enum.Font.GothamBold, "TextSize", 16, "TextColor3", Theme.TextPrimary, "AutoButtonColor", false, "Parent", card)
-        Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
-        close.MouseButton1Click:Connect(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-            Config.HideCenterBrand = true
-            pcall(SaveConfig)
-            if sg then sg:Destroy() end
-        end)
-        -- stays forever until X — no auto-dismiss
-    end)
 end)
 task.spawn(function() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local old = hubFind("JustAFanWalkingBestBar")
@@ -14991,10 +14965,10 @@ Config[key] = v; SaveConfig() end, order, full)
     local searchRegistry = {}
     local searchMoved = {}
     local _sp = Config.JustAFanSettingsPos
-    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 480, 0, 360), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -180), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
-    panel:SetAttribute("JAFBaseScale", 0.88)
+    local panel = JUI.new("Frame", bsg, "Name", "MainPanel", "Size", UDim2.new(0, 400, 0, 300), "Position", _sp and UDim2.new(_sp.X, 0, _sp.Y, 0) or UDim2.new(0, 50, 0.5, -150), "BackgroundColor3", CS.BG, "BackgroundTransparency", 0.12, "BorderSizePixel", 0, "Visible", false)
+    panel:SetAttribute("JAFBaseScale", 0.75)
     pcall(function() LPH_ATTRIBUTES(ERROR_HANDLING(false))
-local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.88; us.Parent = panel end)
+local us = Instance.new("UIScale"); us.Name = "JAFUIScale"; us.Scale = 0.75; us.Parent = panel end)
     _G.JAF_SleekFontRoot = panel
     JUI.corner(panel, 10)
     local panStroke = JUI.stroke(panel, CS.SH, 1, 0.55)
