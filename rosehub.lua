@@ -1993,19 +1993,19 @@ do
     if remapped then Config.CurrentTheme = remapped pcall(SaveConfig) end
 end
 if Config.CurrentTheme and THEMES[Config.CurrentTheme] then for k, v in pairs(THEMES[Config.CurrentTheme]) do Theme[k] = v end end
--- FORCE the monochrome (Modern GUI) look over any saved/custom/image theme, so the
+-- FORCE the light-orange Gerat Hub look over saved/custom/image themes, so the
 -- ENTIRE hub matches. Runs before any panel is built, so every Theme-based UI follows.
 do
-    Theme.Background       = Color3.fromRGB(20, 20, 20)
-    Theme.Surface          = Color3.fromRGB(34, 34, 34)
-    Theme.SurfaceHighlight = Color3.fromRGB(46, 46, 46)
-    Theme.Accent1          = Color3.fromRGB(235, 235, 235)
-    Theme.Accent2          = Color3.fromRGB(130, 130, 130)
-    Theme.TextPrimary      = Color3.fromRGB(238, 238, 238)
-    Theme.TextSecondary    = Color3.fromRGB(130, 130, 130)
-    Theme.Success          = Color3.fromRGB(235, 235, 235)
+    Theme.Background       = Color3.fromRGB(24, 18, 12)
+    Theme.Surface          = Color3.fromRGB(38, 29, 20)
+    Theme.SurfaceHighlight = Color3.fromRGB(58, 42, 27)
+    Theme.Accent1          = Color3.fromRGB(255, 190, 105)
+    Theme.Accent2          = Color3.fromRGB(230, 145, 55)
+    Theme.TextPrimary      = Color3.fromRGB(255, 248, 238)
+    Theme.TextSecondary    = Color3.fromRGB(190, 166, 140)
+    Theme.Success          = Color3.fromRGB(255, 190, 105)
     Theme.Error            = Color3.fromRGB(205, 120, 120)
-    Theme.Stroke           = Color3.fromRGB(50, 50, 50)
+    Theme.Stroke           = Color3.fromRGB(88, 61, 36)
     _G.JAF_ForceMono = true
     -- stop later image/custom theming from re-tinting
     if Config then Config.ThemeImageUrl = ""; Config.CurrentTheme = "white" end
