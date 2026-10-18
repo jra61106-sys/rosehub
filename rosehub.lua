@@ -1937,6 +1937,38 @@ function jafUnifyPanelStyle() LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
             if not frame then frame = sg:FindFirstChildWhichIsA("Frame") end
             if frame then pcall(jafStyleOnePanel, frame) end
         end end end
+
+-- Gerat Hub: recolor hard-coded near-black surfaces in the hub panels too.
+-- Keep the scope limited to this script's own ScreenGuis.
+task.spawn(function()
+    local orangeSurfaces = {
+        Frame = Color3.fromRGB(92, 38, 0),
+        TextButton = Color3.fromRGB(125, 52, 0),
+        TextBox = Color3.fromRGB(105, 43, 0),
+        ScrollingFrame = Color3.fromRGB(82, 33, 0),
+        ImageButton = Color3.fromRGB(125, 52, 0),
+        ImageLabel = Color3.fromRGB(92, 38, 0),
+    }
+    while task.wait(1) do
+        for _, target in ipairs(JAF_STYLE_TARGETS) do
+            local sg = hubFind(target[1])
+            if sg then
+                for _, obj in ipairs(sg:GetDescendants()) do
+                    if obj:IsA("GuiObject") and obj.BackgroundTransparency < 1 then
+                        local c = obj.BackgroundColor3
+                        if c.R < 0.16 and c.G < 0.16 and c.B < 0.16 then
+                            local replacementColor = orangeSurfaces[obj.ClassName]
+                            if replacementColor then
+                                obj.BackgroundColor3 = replacementColor
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 applyTheme = function(themeName) LPH_ATTRIBUTES(VM(NONE), ERROR_HANDLING(false))
     local t = THEMES[themeName]
     if not t then return end
